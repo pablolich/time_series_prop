@@ -1,3 +1,7 @@
+"""
+This script contains code defining the class fit, and its methods. An example
+of how to instantiate an object fit is called at the end
+"""
 import numpy as np
 import pandas as pd
 import os
