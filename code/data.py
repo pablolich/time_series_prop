@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 class Data:
     def __init__(self, file_names):
@@ -9,8 +10,6 @@ class Data:
         """
 
         self.file_names = file_names
-        self.output_file = output_file
-        self.output_name = os.path.splitext(os.path.basename(output_file))[0]
         
         # Observed data
         self.observed_abundances = []

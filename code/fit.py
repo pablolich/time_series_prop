@@ -9,65 +9,50 @@ import pickle
 
 class Fit:
     def __init__(self, data, model, cost):
-        self.file_names = data.file_names
-        #self.output_file = output_file
-        #self.output_name = os.path.splitext(os.path.basename(output_file))[0]
+        #self.file_names = data.file_names
         
-        # Observed data
-        self.observed_abundances_norm = []
-        self.times_norm = []
-        
-        # Read files and process observed data
-        for fn in self.file_names:
-            tmp = pd.read_csv(fn).values
-            self.times.append(tmp[:, 0].astype(float))
-            self.observed_abundances.append(tmp[:, 1:].astype(float))
-        
-        # Normalize time
-        maxtime = max(map(np.max, self.times))
-        mintime = min(map(np.min, self.times))
-        self.times = [(t - mintime) / (maxtime - mintime) for t in self.times]
-        
-        # Normalize abundances
-        Tot = np.sum(self.observed_abundances[0][0, :])
-        self.observed_abundances = [x / Tot for x in self.observed_abundances]
-        self.observed_proportions = [x / np.sum(x, axis=1, keepdims=True) for x in self.observed_abundances]
-        
-        # Initialize other attributes
-        self.n = self.observed_abundances[0].shape[1]  # Number of species
-        self.n_time_series = len(self.observed_abundances)  # Number of time series
-        self.n_initial = self.n * self.n_time_series  # Initial conditions
-        self.type_of_inference = ""  # String to be set later (e.g., "proportions", "abundances")
-        self.predicted_abundances = np.zeros_like(self.observed_abundances)  # Same shape as observed_abundances
-        self.predicted_proportions = np.zeros_like(self.observed_abundances)  # Same shape as observed_abundances
-        self.n_model = 0  # Integer: number of model parameters (to be set later)
-        self.n_cost_function = 0  # Integer: number of cost functions (to be set later)
-        self.model_name = ""  # String: name of the model (e.g., "GLV")
-        self.cost_function_name = ""  # String: name of the cost function (e.g., "SSQ_prop")
+        # Initialize inherited attributes from data, model, cost
+        self.n = data.n
+        self.n_time_series = data.n_time_series
+        self.n_initial = self.n * self.n_time_series
+        self.observed_abundances = data.observed_abundances
+        self.times = data.times
+        self.predicted_abundances = np.zeros_like(self.observed_abundances)     
+        self.predicted_proportions = np.zeros_like(self.observed_abundances)  
+
+        self.n_model = model.n_model 
+        self.model_name = model.model_name
+
+        self.cost_function_name = cost.cost_name
+        self.n_cost = cost.n_cost  
+
         self.cost = 0.0  # Real number: cost value (float)
         self.pars = np.array([])  # Vector of real numbers (initialized empty)
         self.set_true_zeros = np.array([x[0, :] > 0 for x in self.observed_abundances]).astype(int).flatten()
         self.random_seed = 0
-    
-    def save(self):
-        """
-        Save the current instance of Fit to a file.
-        """
-        with open(self.output_file, 'wb') as f:
-            pickle.dump(self, f)
-    
-    @staticmethod
-    def load(file_path):
-        """
-        Load a saved Fit instance from a file.
-        """
-        with open(file_path, 'rb') as f:
-            return pickle.load(f)
 
+    def parse_model_parameters(self):
+        """
+        Parse parameters from the fit object to extract initial conditions 
+        and model coefficients.
+        :return: Dictionary with structured parameters.
+        """
+        pars = self.fit.pars
+        p = pars[self.fit.n_initial:self.fit.n_initial + self.n_model]
+        init_conds = []
+        x0 = np.abs(pars[:self.fit.n_initial])
 
-# Instantiate the Fit object
+        for i in range(self.fit.n_time_series):
+            tmp = x0[i * self.n:(i + 1) * self.n]
+            # Apply hard zeros
+            zeros = self.fit.set_true_zeros[i * self.n:(i + 1) * self.n]
+            tmp *= zeros
+            init_conds.append(tmp)
 
-fit = Fit(["data/glv_chaos_4spp.csv"], "compiled_data/glv_chaos_4spp")
+        params = {
+            "r": p[:self.n], 
+            "A": p[self.n:].reshape(self.n, self.n), 
+            "init_conds": init_conds
+        }
+        return params
 
-#save it as pickle
-fit.save()
