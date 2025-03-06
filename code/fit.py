@@ -8,17 +8,17 @@ import os
 import pickle
 
 class Fit:
-    def __init__(self, file_names, output_file):
-        self.file_names = file_names
-        self.output_file = output_file
-        self.output_name = os.path.splitext(os.path.basename(output_file))[0]
+    def __init__(self, data, model, cost):
+        self.file_names = data.file_names
+        #self.output_file = output_file
+        #self.output_name = os.path.splitext(os.path.basename(output_file))[0]
         
         # Observed data
-        self.observed_abundances = []
-        self.times = []
+        self.observed_abundances_norm = []
+        self.times_norm = []
         
         # Read files and process observed data
-        for fn in file_names:
+        for fn in self.file_names:
             tmp = pd.read_csv(fn).values
             self.times.append(tmp[:, 0].astype(float))
             self.observed_abundances.append(tmp[:, 1:].astype(float))
