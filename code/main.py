@@ -2,7 +2,7 @@ from glv import GLVModel
 from ssq_prop import SSQCostFunction
 from data import Data
 from fit import Fit
-from utils import continuous_step
+from utils import continuous_step, integrate
 import os
 
 # Load data and initialize Fit object
@@ -16,16 +16,11 @@ data = Data(file_list)
 model = GLVModel(data)
 cost_function = SSQCostFunction()
 # Initialize fit
-import ipdb; ipdb.set_trace(context = 20)
 fit = Fit(data, model, cost_function)
+#initialize parameters (initial conditions, model, and cost funct parameters)
+fit.initialize_parameters()
+import ipdb; ipdb.set_trace(context = 20)
+integrate(fit, model)
 
-#fit = Fit(["data/glv_chaos_4spp.csv"], "compiled_data/glv_chaos_4spp")
-# Generate model predictions
-#model.initialize_model_parameters()
-#import ipdb; ipdb.set_trace(context = 20)
-#model.integrate()
-#
-## Compute cost function
-#cost_value = cost_function.compute_cost(fit.predicted_abundances)
-#print(f"Cost Value: {cost_value}")
-
+#optimize parameters
+model.integrate()

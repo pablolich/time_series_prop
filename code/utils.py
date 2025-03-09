@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.integrate import solve_ivp
+
 
 def continuous_step(x, lambd, k=25):
     """
@@ -18,26 +20,38 @@ def continuous_step(x, lambd, k=25):
     # Compute the step function
     return 1 - 1 / (1 + np.exp(-k * (x - lambd)))
 
-def integrate(fit):
+def integrate(fit, model):
     """
-    Integrates the system for each time series in the Fit object and updates 
-    predicted_abundances.
+    Integrate the GLV model using the parameters in fit.
+    Updates fit.predicted_abundances and fit.predicted_proportions.
     """
-    pars = self.parse_parameters()
+    params = fit.parse_model_parameters()
     predicted_abundances = []
+    predicted_proportions = []
 
-    for i in range(self.fit.n_time_series):
-        # Solve ODE using scipy's odeint
-        init_cond = pars["init_conds"][i] if "init_conds" in pars else self.fit.observed_abundances[i][0]
-        times = self.fit.times[i]
+    for i in range(fit.n_time_series):
+        times = fit.times[i]
+        init_conds = params["init_conds"][i]
 
-        out = odeint(self.dxdt, init_cond, times, args=(pars,))
-        y = np.array(out)
+        import ipdb; ipdb.set_trace(context = 20)
+        sol = solve_ivp(
+            fun=lambda t, y: model.dxdt(t, y, params),
+            t_span=(times[0], times[-1]),
+            y0=init_conds,
+            t_eval=times,
+            method='RK45',
+            max_step=0.1
+        )
 
-        # Handle invalid values
-        y[np.isnan(y) | np.isinf(y) | (y > 1e5) | (y < -1e-15) | (y < 0)] = PENALIZATION_ABUNDANCE
+        abundances = sol.y.T
+        abundances[fit.observed_proportions[i] == 0] = 0  # Handle zero observations
+        abundances[~np.isfinite(abundances)] = 1e6  # Handle NaN/Inf
 
-        predicted_abundances.append(y)
+        proportions = abundances / np.sum(abundances, axis=1, keepdims=True)
 
-    self.fit.predicted_abundances = predicted_abundances
+        predicted_abundances.append(abundances)
+        predicted_proportions.append(proportions)
+
+    fit.predicted_abundances = predicted_abundances
+    fit.predicted_proportions = predicted_proportions
 

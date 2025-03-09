@@ -16,11 +16,11 @@ class GLVModel:
         self.n_model = self.n * (self.n + 1)  # Number of model parameters
         self.model_name = "GLV"
 
-    def dxdt(self, x, t, pars):
+    def dxdt(self, t, x, pars):
         """
         Compute dx/dt for the GLV model.
-        :param x: State variables (species abundances)
         :param t: Time (not used explicitly)
+        :param x: State variables (species abundances)
         :param pars: Dictionary containing model parameters
         :return: dx/dt as a NumPy array
         """
@@ -28,12 +28,4 @@ class GLVModel:
         dx = x * (pars["r"] + np.dot(pars["A"], x))
         return dx
 
-
-    def initialize_model_parameters(self):
-        """
-        initialize model parameters randomly and store them in fit.pars.
-        """
-        import ipdb; ipdb.set_trace(context = 20)
-        np.random.seed(self.fit.random_seed)
-        self.fit.pars[self.fit.n_initial:self.fit.n_initial + self.n_model] = np.random.randn(self.n_model)
 
