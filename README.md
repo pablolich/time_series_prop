@@ -27,7 +27,7 @@ This project implements a pipeline for fitting a relative species abundance time
 3. **`cost/`** - Library of cost functions
 5. **`data.py`** - Builds a data object given a dataset to be fed to the fit object
 6. **`fit.py`** - Combines data, model, and cost functions into a single object
-7. **`utils.py`** - Contains auxiliary functions such those for integrating, and optimizing. 
+7. **`utils.py`** - Contains auxiliary functions such those for scoring results, integrating, and optimizing. 
 8. **`main.py`** - Runs the full pipeline
 
 ---

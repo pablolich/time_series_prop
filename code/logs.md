@@ -1,3 +1,7 @@
+#### Mar 15,2025
+
+Finished coding forward integration and cost calculation. 
+Todos are (1) write the simplest optimization routine, (2) come up with a code that searches for initial conditions, (3) implement saving of results, and possible recyling on new round of fitting 
 
 #### Mar 08,2025
 

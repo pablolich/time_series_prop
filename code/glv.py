@@ -7,13 +7,13 @@ THRESH = 1e-16  # Threshold for small values
 PENALIZATION_ABUNDANCE = 1e-7  # Replacement for NaN values
 
 class GLVModel:
-    def __init__(self, data):
+    def __init__(self, dim):
         """
         Generalized Lotka-Volterra (GLV) model class.
-        :param fit: Fit object containing data and parameters.
+        :param dim: dimension of the model.
         """
-        self.n = data.n  # Number of species
-        self.n_model = self.n * (self.n + 1)  # Number of model parameters
+        self.dim = dim # Number of species
+        self.n_model = dim * (dim + 1)  # Number of model parameters
         self.model_name = "GLV"
 
     def dxdt(self, t, x, pars):
@@ -28,4 +28,15 @@ class GLVModel:
         dx = x * (pars["r"] + np.dot(pars["A"], x))
         return dx
 
+    def parse_model_parameters(self, dim, pars):
+        """
+        Create a dictionary of parameter names and dimensional shapes
+        :param dim: dimension of the model
+        :param pars: vector of model parameters
+        """
+        params = {
+            "r": pars[:dim], 
+            "A": pars[dim:].reshape(dim, dim)
+            }
+        return params
 

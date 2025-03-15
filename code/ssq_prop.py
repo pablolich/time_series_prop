@@ -1,16 +1,18 @@
 import numpy as np
+from utils import continuous_step
 
 class SSQCostFunction:
     """
     Sum of Squared Differences (SSQ) for Proportions as Cost Function.
     """
 
-    def __init__(self):
+    def __init__(self, weighting = continuous_step):
         """
         Initialize the cost function with the Fit object.
         """
         self.n_cost = 0
         self.cost_name = "SSQ"
+        self.weight_func = weighting #computes weights for each time point
 
     def compute_cost(self, observed, predicted, times, fraction_reveal=0.5):
         """
@@ -24,11 +26,11 @@ class SSQCostFunction:
         SSQ = []
 
         for i in range(len(observed)):
-            weights = continuous_step(times[i], fraction_reveal)
+            weights = self.weight_func(times[i], fraction_reveal)
             obs = observed[i]
             pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True)
 
-            tmp = (weights * (obs - pred) ** 2).flatten()
+            tmp = (weights[:, np.newaxis] * (obs - pred) ** 2).flatten()
             SSQ.extend(tmp)
 
         return np.log(np.mean(SSQ))
