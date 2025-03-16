@@ -1,32 +1,9 @@
-#this script contains auxiliary functions to score solutions, integrate
-#dynamics, and search parameters
+"""
+This script contains functions used for integration routine
+"""
 
-import numpy as np
-from scipy.integrate import solve_ivp
-
-##############################################################################
-#scoring functions
-
-def continuous_step(x, lambd, k=25):
-    """
-    Returns the weights given x between 0 and 1.
-
-    :param x: Array-like, values between 0 and 1.
-    :param lambd: Transition point.
-    :param k: Steepness of transition (default: 25).
-    :return: Array of weights.
-    """
-    x = np.array(x)  # Ensure x is a NumPy array
-
-    # If transition happens at 1, return all ones
-    if lambd == 1:
-        return np.ones_like(x)
-    
-    # Compute the step function
-    return 1 - 1 / (1 + np.exp(-k * (x - lambd)))
-
-###############################################################################
-#integration functions
+import numpy as np #general use
+from scipy.integrate import solve_ivp #for integration
 
 def parse_integration_parameters(fit):
     """
@@ -72,7 +49,7 @@ def process_integration_result(solution, times):
         print("I don't know what to do with this integration status")
 
 
-def integrate(fit):
+def get_predictions(fit):
     """
     Integrate dynamics of model given initial conditions and parameters in fit.
     Updates fit.predicted_abundances and fit.predicted_proportions.
@@ -106,12 +83,4 @@ def integrate(fit):
     fit.predicted_abundances = predicted_abundances
     fit.predicted_proportions = predicted_proportions
 
-##############################################################################
-#search functions
-
-def optimize(fit):
-    """
-    Perform optimization of parameters in fit by integrating dynamics of the 
-    underlying model
-    """
-
+    return fit

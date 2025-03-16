@@ -1,7 +1,15 @@
-#### Mar 15,2025
+
+#### Mar 16,2025
+
+Simplest optimization rutine finished. Next: find a way for things not to diverge.
+Questions for Stefano: 
+1. what is ix_ode, and also, what is the role of WEIGHTSin the cost function
+2. How to penalize for divergences in integration
+
+#### Mar 16,2025
 
 Finished coding forward integration and cost calculation. 
-Todos are (1) write the simplest optimization routine, (2) come up with a code that searches for initial conditions, (3) implement saving of results, and possible recyling on new round of fitting 
+Todos are (1) write the simplest optimization routine, (2) come up with a code that searches for initial conditions, (3) implement saving of results, and possible recyling on new round of fitting, and (4) separate model between intraspecific interactions versus interspecific interactions
 
 #### Mar 08,2025
 

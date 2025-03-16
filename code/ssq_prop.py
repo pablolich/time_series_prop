@@ -1,40 +1,46 @@
 import numpy as np
-from utils import continuous_step
 
 class SSQCostFunction:
     """
     Sum of Squared Differences (SSQ) for Proportions as Cost Function.
     """
 
-    def __init__(self, weighting = continuous_step):
+    def __init__(self):
         """
-        Initialize the cost function with the Fit object.
+        Initialize the cost function.
         """
         self.n_cost = 0
         self.cost_name = "SSQ"
-        self.weight_func = weighting #computes weights for each time point
 
-    def compute_cost(self, observed, predicted, times, fraction_reveal=0.5):
+    def compute_cost(self, observed, predicted, times, weight=None):
         """
         Compute the SSQ cost function for predicted abundances.
-        :param observed: Matrix of observed abuncances
-        :param predicted: Matrix of predicted abundances
-        :param times: Vector of times
-        :param fraction_reveal: Controls how much of the time series is emphasized.
+        :param observed: List of matrices of observed abundances
+        :param predicted: List of matrices of predicted abundances
+        :param times: List of vectors representing times
+        :param weight: Optional weighting factor, based on time (for each time point)
         :return: Log of mean SSQ error.
         """
         SSQ = []
 
         for i in range(len(observed)):
-            weights = self.weight_func(times[i], fraction_reveal)
             obs = observed[i]
-            pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True)
+            pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True)  # Normalize predictions
 
-            tmp = (weights[:, np.newaxis] * (obs - pred) ** 2).flatten()
-            SSQ.extend(tmp)
+            # Calculate sum of squared differences
+            diff = (obs - pred) ** 2
+            weighted_diff = diff
+
+            if weight is not None:
+                # Apply the weight based on time for the current time series
+                weighted_diff *= np.exp(-weight * times[i])
+
+            # Flatten the weighted squared differences and add them to SSQ list
+            SSQ.extend(weighted_diff.flatten())
 
         return np.log(np.mean(SSQ))
 
     def initialize_cost_function_parameters(self):
-        #return none since ssq has no parameters
+        # Return None since SSQ has no parameters
         return None
+
