@@ -7,6 +7,7 @@ from scipy.optimize import minimize
 import numpy as np
 import itertools #for optimization of specific parameter combinations
 import random
+import copy
 
 def to_minimize_k(values, positions, fit, weight):
     """
@@ -23,7 +24,9 @@ def to_minimize_k(values, positions, fit, weight):
     """
     fit.pars[positions] = values
     fit = get_predictions(fit)
-    return fit.cost.compute_cost(fit.data.observed_abundances, fit.predicted_abundances, fit.data.times)
+    return fit.cost.compute_cost(fit.data.observed_abundances, 
+            fit.predicted_abundances, 
+            fit.data.times)
 
 def optimize_k(positions, fit, method='Nelder-Mead', weight=None):
     """
@@ -38,9 +41,9 @@ def optimize_k(positions, fit, method='Nelder-Mead', weight=None):
     Returns:
     Fit: Fit object with updated parameters only if cost is reduced.
     """
-    initial_goal = fit.cost.compute_cost(fit.data.observed_abundances, fit.predicted_abundances, fit.data.times)
-    print(initial_goal)
+    print(f"Initial cost: {fit.cost_value}")
     initial_values = fit.pars[positions]
+    initial_goal = fit.cost_value
     
     res = minimize(
         fun=to_minimize_k,
@@ -55,7 +58,7 @@ def optimize_k(positions, fit, method='Nelder-Mead', weight=None):
     if new_goal < initial_goal:
         fit.pars[positions] = res.x
         fit = get_predictions(fit)
-        fit.goal = new_goal
+        fit.cost_value = new_goal
     
     return fit
 
@@ -109,19 +112,74 @@ def hc_k(positions, fit, weight=None, hc_steps=100, hc_dec=0.9):
     Returns:
     Fit: Fit object with optimized parameters if cost is reduced.
     """
-    initial_goal = fit.cost.compute_cost(fit.data.observed_abundances, fit.predicted_abundances, fit.data.times)
+    initial_goal = fit.cost_value
     initial_values = fit.pars[positions]
     #set perturbation magnitude at 1
     perturb=1.0
     for _ in range(hc_steps):
-        tmp = fit
+        tmp = copy.deepcopy(fit)
         tmp.pars[positions] = tmp.pars[positions] * (1 + perturb * np.random.randn(len(positions)))
-        tmp.goal = fit.cost.compute_cost(tmp.data.observed_abundances, tmp.predicted_abundances, tmp.data.times)
+        tmp.cost_value = fit.cost.compute_cost(tmp.data.observed_abundances, 
+                tmp.predicted_abundances, 
+                tmp.data.times)
         
-        if tmp.goal < initial_goal:
+        if tmp.cost_value < initial_goal:
             fit = tmp
-            initial_goal = tmp.goal
+            initial_goal = tmp.cost_value
         
         perturb *= hc_dec
     
     return fit
+
+def initialize_random(fit, n_rounds=10, init_weight=None):
+    """
+    Performs random initialization of parameters and optimizes using 
+    hill-climbing.
+
+    This function initializes the model, cost function, and observed 
+    initial conditions randomly over multiple attempts (`n_rounds`). It applies
+    hill-climbing optimization (`hc_k`) to refine the parameters and selects 
+    the best fit based on the goal function.
+
+    Parameters:
+    ----------
+    fit : Fit
+        An instance of the Fit class containing data, model, and cost function.
+    n_rounds : int, optional
+        Number of random initialization attempts (default: 10).
+    init_weight : float, optional
+        Weighting factor for the goal function during optimization.
+
+    Returns:
+    -------
+    Fit
+        The best `Fit` instance found after nrounds of initialization and
+        nrounds of hill climbing optimization.
+    """
+    best_fit = copy.deepcopy(fit)
+    best_goal = None
+
+    for ntry_random in range(n_rounds):
+        print(f"Random init {ntry_random}, Best goal: {best_goal}")
+
+        # Initialize at the observed initial conditions after setting new seed
+        fit.random_seed = ntry_random
+        fit.initialize_parameters()
+        # Perform one round of (100 steps of) hill-climbing optimization
+        fit = hc_k(fit.par_ix_model, fit, weight=init_weight)
+
+        # Compute predictions and goal function
+        fit = get_predictions(fit)
+        fit.cost_value = fit.cost.compute_cost(fit.data.observed_abundances, 
+                fit.predicted_abundances, 
+                fit.data.times)
+
+        cur_goal = fit.cost_value
+
+        # Track the best fit based on the goal function value
+        if best_goal is None or cur_goal < best_goal:
+            best_goal = cur_goal
+            best_fit = copy.deepcopy(fit)
+            print(f"Iteration {ntry_random}: New best goal = {best_goal}")
+
+    return best_fit

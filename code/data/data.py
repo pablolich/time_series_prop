@@ -17,10 +17,13 @@ class Data:
         
         # Read files and process observed data
         for fn in file_names:
-            tmp = pd.read_csv(fn).values
+            data = pd.read_csv(fn)
+            tmp = data.values
             self.times.append(tmp[:, 0].astype(float))
             self.observed_abundances.append(tmp[:, 1:].astype(float))
         
+        #get names of columns
+        self.pop_names = data.columns[1:].tolist()
         # Normalize time
         maxtime = max(map(np.max, self.times))
         mintime = min(map(np.min, self.times))
@@ -33,4 +36,4 @@ class Data:
         
         self.n = self.observed_abundances[0].shape[1]  # Number of species
         self.n_time_series = len(self.observed_abundances)  # Number of time series
-        #self.type_of_inference = ""  # String to be set later (e.g., "proportions", "abundances")
+        self.n_initial = self.n * self.n_time_series #number of initial conditions

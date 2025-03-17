@@ -13,13 +13,13 @@ def parse_integration_parameters(fit):
     """
     pars = fit.pars
     #get parameters corresponding only to model
-    p = pars[fit.n_initial:fit.n_initial + fit.model.n_model]
+    p = pars[fit.data.n_initial:fit.data.n_initial + fit.model.n_model]
     #create a dictionary of parameters to be read by the integration routine
     params = fit.model.parse_model_parameters(fit.model.dim, p)
 
     #initialize initial conditions accounting for true zeros
     init_conds = []
-    x0 = np.abs(pars[:fit.n_initial])
+    x0 = np.abs(pars[:fit.data.n_initial])
     #do this for each time series
     for i in range(fit.data.n_time_series):
         tmp = x0[i * fit.data.n:(i + 1) * fit.data.n]

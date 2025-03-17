@@ -1,7 +1,20 @@
+# TODOS
+--------------------------------------------------------------------
+0. What is going on with the minimization given what I see in the plots. Is it diverging? 
+1. Reflect on the code I have and see if I should make some functions mehtods of Fit class. optimize_k? protocol options? 
+2. Separate model between intraspecific interactions versus interspecific interactions
+3. Prepare functionality to make it easy to do meta fitting with a bunch of models and datasets.
+4. Implement jax here
 
+# QUESTIONS
+---------------------------------------------------------------------
+1. How to penalize for divergences in integration
+2. What are unobserved abundances?
+
+--------------------------------------------------------------------
 #### Mar 16,2025
 
-Simplest optimization rutine finished. Next: find a way for things not to diverge.
+Simplest optimization rutine finished. Next: find a way for things not to diverge. That is, do an optimization protocol.
 Questions for Stefano: 
 1. what is ix_ode, and also, what is the role of WEIGHTSin the cost function
 2. How to penalize for divergences in integration

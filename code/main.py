@@ -1,9 +1,11 @@
-from glv import GLVModel
-from ssq_prop import SSQCostFunction
-from data import Data
+from models.glv import GLVModel
+from cost_functions.ssq_prop import SSQCostFunction
+from data.data import Data
+from opt_protocols.reveal_optimize_refine import *
 from fit import Fit
 from optimization_funcs import *
 from integration_funcs import *
+from plotting_funcs import *
 import os
 
 # Load data and initialize Fit object
@@ -18,13 +20,12 @@ model = GLVModel(data.n)
 cost_function = SSQCostFunction()
 # Initialize fit
 fit = Fit(data, model, cost_function)
-#initialize parameters (initial conditions, model, and cost funct parameters)
-fit.initialize_parameters()
-#compute cost for initial parameters
+#search for good initial parameters 
+fit = initialize_random(fit, n_rounds = 100) 
 fit = get_predictions(fit)
-fit.cost_value = fit.cost.compute_cost(fit.data.observed_abundances, 
-        fit.predicted_abundances, 
-        fit.data.times)
-fit = optimize_k(range(len(fit.pars)), fit)
-print(fit.cost_value)
-#optimize parameters
+plot_res_combined(fit)
+#run optimization protocol 
+weights = np.linspace(10, 1, num=3).tolist() + [0]
+fit = reveal_optimize_refine(fit, weights)
+plot_res_combined(fit)
+fit.save_results()

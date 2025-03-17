@@ -4,18 +4,26 @@
 ```
 code/
 │── main.py
-│── utils.py
 │── fit.py
+│── integration_funcs.py
+│── optimization_funcs.py
 │── models/ #folder with models
 │   ├── __init__.py
 │   ├── glv.py
 │── cost/ #folder for cost functions
 │   ├── __init__.py
 │   ├── ssq_prop.py
-│── data/ #folder for dataset files and class to read them
-│   │── data.py
-│   ├── glv_chaos_4spp.csv
-
+│   ├── log_prop.py
+│── data/ #folder for dataset files and data.py class to read them
+│   ├── __init__.py
+│   ├── data.py
+│   ├── Davis
+│   ├── Hiltunen
+│   ├── Jo
+│   ├── glv_3spp
+│   ├── glv_4spp
+│── opt_protocols/ #folder for dataset files and data.py class to read them
+│   ├── __init__.py
 ```
 
 ## 🚀 Overview
