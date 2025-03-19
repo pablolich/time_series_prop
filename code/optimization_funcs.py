@@ -1,5 +1,6 @@
 """
-This script contains functions to perform optimization on fit objects
+This script contains functions to perform different optimization techniques 
+on fit objects
 """
 from integration_funcs import *
 
@@ -8,59 +9,6 @@ import numpy as np
 import itertools #for optimization of specific parameter combinations
 import random
 import copy
-
-def to_minimize_k(values, positions, fit, weight):
-    """
-    Updates fit parameters at specified positions and computes the goal function.
-    
-    Parameters:
-    values (array): New values for parameters.
-    positions (array): Indices of parameters to update.
-    fit (Fit): Fit object containing model data.
-    weight (optional): Weighting factor for goal function.
-    
-    Returns:
-    float: Computed goal function value.
-    """
-    fit.pars[positions] = values
-    fit = get_predictions(fit)
-    return fit.cost.compute_cost(fit.data.observed_abundances, 
-            fit.predicted_abundances, 
-            fit.data.times)
-
-def optimize_k(positions, fit, method='Nelder-Mead', weight=None):
-    """
-    Optimizes fit parameters using a specified optimization method.
-    
-    Parameters:
-    positions (array): Indices of parameters to optimize.
-    fit (Fit): Fit object containing model data.
-    method (str): Optimization method to use (default: 'Nelder-Mead').
-    weight (optional): Weighting factor for goal function.
-    
-    Returns:
-    Fit: Fit object with updated parameters only if cost is reduced.
-    """
-    print(f"Initial cost: {fit.cost_value}")
-    initial_values = fit.pars[positions]
-    initial_goal = fit.cost_value
-    
-    res = minimize(
-        fun=to_minimize_k,
-        x0=initial_values,
-        args=(positions, fit, weight),
-        method=method,
-        options={'maxiter': 250, 'disp': False}
-    )
-    
-    new_goal = to_minimize_k(res.x, positions, fit, weight)
-    
-    if new_goal < initial_goal:
-        fit.pars[positions] = res.x
-        fit = get_predictions(fit)
-        fit.cost_value = new_goal
-    
-    return fit
 
 def all_k(positions, fit, k=2, weight=None):
     """
@@ -88,9 +36,10 @@ def all_k(positions, fit, k=2, weight=None):
     random.shuffle(combinations)
 
     # Iterate over the shuffled combinations and optimize
+    print("weights inside all_k: ", weight)
     for i, combo in enumerate(combinations):
         # Call optimize_k for the current combination of parameters
-        fit = optimize_k(positions=list(combo), fit=fit, weight=weight)
+        fit.optimize(positions=list(combo), weight=weight)
         
         # Print iteration information: weight, iteration number, total combinations, and the current goal value
         print(f"{weight}, {i + 1}, {ncombos}, {fit.cost_value}")  
@@ -99,7 +48,7 @@ def all_k(positions, fit, k=2, weight=None):
 
 def hc_k(positions, fit, weight=None, hc_steps=100, hc_dec=0.9):
     """
-    Performs hill-climbing optimization on fit parameters.
+    Performs hill-climbing optimization on model parameters.
     
     Parameters:
     positions (array): Indices of parameters to optimize.
@@ -118,13 +67,12 @@ def hc_k(positions, fit, weight=None, hc_steps=100, hc_dec=0.9):
     perturb=1.0
     for _ in range(hc_steps):
         tmp = copy.deepcopy(fit)
+        #perturb parameters and propagate abundnaces
         tmp.pars[positions] = tmp.pars[positions] * (1 + perturb * np.random.randn(len(positions)))
-        tmp.cost_value = fit.cost.compute_cost(tmp.data.observed_abundances, 
-                tmp.predicted_abundances, 
-                tmp.data.times)
-        
+        tmp.get_predictions()
+        tmp.cost_value = tmp.to_minimize(tmp.pars, range(tmp.n_pars), weight)        
         if tmp.cost_value < initial_goal:
-            fit = tmp
+            fit = copy.deepcopy(tmp)
             initial_goal = tmp.cost_value
         
         perturb *= hc_dec
@@ -165,15 +113,12 @@ def initialize_random(fit, n_rounds=10, init_weight=None):
         # Initialize at the observed initial conditions after setting new seed
         fit.random_seed = ntry_random
         fit.initialize_parameters()
+        fit.get_predictions()
+        #calculate cost with initial parameters
+        fit.cost_value = fit.to_minimize(fit.pars, range(fit.n_pars), 
+                weight = init_weight)
         # Perform one round of (100 steps of) hill-climbing optimization
         fit = hc_k(fit.par_ix_model, fit, weight=init_weight)
-
-        # Compute predictions and goal function
-        fit = get_predictions(fit)
-        fit.cost_value = fit.cost.compute_cost(fit.data.observed_abundances, 
-                fit.predicted_abundances, 
-                fit.data.times)
-
         cur_goal = fit.cost_value
 
         # Track the best fit based on the goal function value

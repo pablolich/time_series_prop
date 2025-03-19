@@ -12,10 +12,10 @@ class SSQCostFunction:
         self.n_cost = 0
         self.cost_name = "SSQ"
 
-    def compute_cost(self, observed, predicted, times, weight=None):
+    def compute_cost(self, observed, predicted, times, pars, obs_type, weight=None):
         """
         Compute the SSQ cost function for predicted abundances.
-        :param observed: List of matrices of observed abundances
+        :param observed: List of matrices of observed proportions
         :param predicted: List of matrices of predicted abundances
         :param times: List of vectors representing times
         :param weight: Optional weighting factor, based on time (for each time point)
@@ -25,15 +25,16 @@ class SSQCostFunction:
 
         for i in range(len(observed)):
             obs = observed[i]
-            pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True)  # Normalize predictions
+            if obs_type == "prop":
+                #transform predictions to proportions
+                pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True) 
 
             # Calculate sum of squared differences
             diff = (obs - pred) ** 2
             weighted_diff = diff
-
             if weight is not None:
                 # Apply the weight based on time for the current time series
-                weighted_diff *= np.exp(-weight * times[i])
+                weighted_diff *= np.exp(-weight * times[i])[:, np.newaxis]
 
             # Flatten the weighted squared differences and add them to SSQ list
             SSQ.extend(weighted_diff.flatten())

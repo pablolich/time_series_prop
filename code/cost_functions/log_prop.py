@@ -15,7 +15,7 @@ class LogDistCostFunction:
         self.n_cost = 0
         self.cost_name = "LOGDIST"
 
-    def compute_cost(self, observed, predicted, times, weight=None):
+    def compute_cost(self, observed, predicted, times, pars,  obs_type, weight=None):
         """
         Compute the LOGDIST cost function for predicted abundances.
         :param fit: The Fit object containing observed and predicted data.
@@ -25,13 +25,14 @@ class LogDistCostFunction:
         goal = 0
 
         for i in range(len(observed)):
-            # Extract predicted and observed proportions for the ith time series
-            pred = predicted[i]
             obs = observed[i]
+            if obs_type == "prop":
+                #transform predictions to proportions
+                pred = predicted[i] / np.sum(predicted[i], axis=1, keepdims=True) 
             
             # Compute the log ratio
             ratio = np.log(pred + THRESH) - np.log(obs + THRESH)
-            goal_rs = np.sum(np.abs(ratio), axis=1)  # Sum the absolute values row-wise
+            goal_rs = np.sum(np.abs(ratio), axis=1)  #Sum the absolute values row-wise
             
             if weight is not None:
                 # Apply the weight if specified

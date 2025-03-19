@@ -10,13 +10,18 @@ class GLVModel:
     def __init__(self, dim):
         """
         Generalized Lotka-Volterra (GLV) model class.
-        :param dim: dimension of the model.
+        :param dim: dimension of the model (number of species).
+        :param n_model: number of model parameters
+        :param model_name: model name
+        :param dynamics: whether dynamics are expressed in differential
+                         equation or analytical solution form
         """
         self.dim = dim # Number of species
         self.n_model = dim * (dim + 1)  # Number of model parameters
         self.model_name = "GLV"
+        self.dynamics_type = "dxdt"
 
-    def dxdt(self, t, x, pars):
+    def dynamics(self, t, x, pars):
         """
         Compute dx/dt for the GLV model.
         :param t: Time (not used explicitly)
