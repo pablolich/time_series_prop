@@ -1,36 +1,37 @@
-from models.glv import GLVModel
-from cost_functions.ssq_prop import SSQCostFunction
-from cost_functions.dirichlet import DirichletFunction
-from cost_functions.log_prop import LogDistCostFunction 
-from models.exponential import ExponentialModel
-from data.data import Data
-from opt_protocols.nelder_bfgs import *
-from fit import Fit
-from optimization_funcs import *
-from integration_funcs import *
+#general imports
 import os
 
-# Load data and initialize Fit object
+#import necessary classes
+import data, cost_functions, models
+import fit
 
-#get file names from Davis data
+#import auxiliary functions
+from aux_integration import *
+from aux_optimization import *
+from opt_protocols import *
+
+#get file names
 path_name = "data/exponential_errors_gamma/"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
-# Initialize data, model and cost function
-data = Data(file_list)
-model = ExponentialModel(data.n)
-#cost_function = SSQCostFunction()
-cost_function = DirichletFunction(data.n)
-#cost_function = LogDistCostFunction()
-# Initialize fit
-fit = Fit(data, model, cost_function)
-#search for good initial parameters 
-#fit = initialize_random(fit, n_rounds = 100) 
-fit.pars = np.array([10, 5, 1, 1, 2, 3, 1, 1, 1])
+
+# Initialize data, model, cost function and fit object
+data = data.Data(file_list, normalize = False)
+model = models.Exponential(data.n)
+cost_function = cost_functions.Dirichlet(data.n)
+fit = fit.Fit(data, model, cost_function)
+
+#search for good initial parameters and update based on new parameters
+fit = initialize_random(fit, n_rounds = 100) 
 fit.get_predictions()
+fit.cost_value = fit.to_minimize(fit.pars, range(fit.n_pars), weight = 0)
+fit.plot()
+
 #run optimization protocol 
 weights = np.linspace(10, 1, num=5).tolist() + [0]
-fit = nelder_bfgs(fit, weights)
-import ipdb; ipdb.set_trace(context = 20)
-fit.plot_results()
+fit = nelder_bfgs(fit, n_rounds = 1)
+
+#plot and save
+print("Final parameters: ", fit.pars)
+fit.plot()
 fit.save_results()

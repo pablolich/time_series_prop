@@ -2,7 +2,7 @@
 This script contains functions to perform different optimization techniques 
 on fit objects
 """
-from integration_funcs import *
+from aux_integration import *
 
 from scipy.optimize import minimize
 import numpy as np

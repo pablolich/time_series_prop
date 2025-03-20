@@ -1,16 +1,22 @@
 """
-This script contains code defining the class fit, and its methods. An example
-of how to instantiate an object fit is called at the end
+This script contains code defining the class fit, and its methods.
 """
+
+#general imports
 import numpy as np
 import pandas as pd
+
+#for plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+#for saving result
 import os
 import pickle
-#auxiliary files
-from integration_funcs import *
-from optimization_funcs import *
+
+#auxiliary functions
+from aux_integration import *
+from aux_optimization import *
 
 class Fit:
     def __init__(self, data, model, cost):
@@ -26,7 +32,6 @@ class Fit:
         
         #initialize cost function value, vector of parameters and random seed
         self.cost_value = 0.0  
-        #preallocate parameter vector
         self.n_pars = self.data.n_initial + \
                 self.model.n_model + \
                 self.cost.n_cost
@@ -44,7 +49,7 @@ class Fit:
         Initialize parameters for model, cost function, and initial conditions
         """
         #set seed
-        np.random.seed(self.random_seed)
+        #np.random.seed(self.random_seed)
         #initial conditions
 
         tmp = np.array([])
@@ -152,7 +157,7 @@ class Fit:
             x0=initial_values,
             args=(positions, weight),
             method=method,
-            options={'maxiter': 250, 'disp': False}
+            options={'maxiter': 250, 'disp': True}
         )
         
         new_goal = self.to_minimize(res.x, positions, weight)
@@ -161,85 +166,39 @@ class Fit:
             self.pars[positions] = res.x
             self.get_predictions()
             self.cost_value = new_goal
-
-    def plot_results(self):
+    def plot(self):
         """
-        Plot fit
+        Plot observed vs. predicted proportions and abundances over time.
         """
-        nts = self.data.n_time_series
-        dt_prop = []
-        dt_abund = []
-        
-        for i in range(nts):
-            # Proportions
-            tmp = pd.DataFrame(self.data.proportions[i])
-            tmp['time'] = self.data.times[i]
-            tmp['type'] = 'proportion'
-            tmp['state'] = 'observed'
-            tmp['time_series'] = i + 1
-            tmp['community'] = '-'.join(
-                np.array(self.data.pop_names)[self.data.proportions[i][0, :] > 0]
-            )
-            dt_prop.append(tmp)
-            
-            tmp = pd.DataFrame(self.predicted_proportions[i])
-            tmp['time'] = self.data.times[i]
-            tmp['type'] = 'proportion'
-            tmp['state'] = 'predicted'
-            tmp['time_series'] = i + 1
-            tmp['community'] = '-'.join(
-                np.array(self.data.pop_names)[self.data.proportions[i][0, :] > 0]
-            )
-            dt_prop.append(tmp)
-            
-            # Abundances
-            tmp = pd.DataFrame(self.data.abundances[i])
-            tmp['time'] = self.data.times[i]
-            tmp['type'] = 'abundance'
-            tmp['state'] = 'unobserved'
-            tmp['time_series'] = i + 1
-            tmp['community'] = '-'.join(
-                np.array(self.data.pop_names)[self.data.abundances[i][0, :] > 0]
-            )
-            dt_abund.append(tmp)
-            
-            tmp = pd.DataFrame(self.predicted_abundances[i])
-            tmp['time'] = self.data.times[i]
-            tmp['type'] = 'abundance'
-            tmp['state'] = 'predicted'
-            tmp['time_series'] = i + 1
-            tmp['community'] = '-'.join(
-                np.array(self.data.pop_names)[self.data.abundances[i][0, :] > 0]
-            )
-            dt_abund.append(tmp)
-        
-        dt_prop = pd.concat(dt_prop, ignore_index=True).melt(
-            id_vars=['time', 'type', 'state', 'time_series', 'community'], 
-            var_name='species', 
-            value_name='x'
-        )
-        
-        dt_abund = pd.concat(dt_abund, ignore_index=True).melt(
-            id_vars=['time', 'type', 'state', 'time_series', 'community'], 
-            var_name='species', 
-            value_name='x'
-        )
-        
-        dt_abund['x'] = dt_abund.groupby(['state', 'time_series'])['x'].transform(lambda x: x / x.mean())
-        
         fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharex=True)
+        markers = ['o', 's', 'D', '^', 'v', 'p', '*', 'h', 'X', '+']  # Different markers for different time series
+        colors = plt.cm.get_cmap("tab10", self.data.proportions[0].shape[1])  # Assign consistent colors per species
         
         # Proportions plot
-        sns.lineplot(data=dt_prop, x='time', y='x', hue='species', style='state', ax=axes[0])
-        axes[0].set_title('Proportion Trends')
+        for i in range(self.data.n_time_series):
+            times = self.data.times[i]
+            for j in range(self.data.proportions[i].shape[1]):
+                marker = markers[i % len(markers)]
+                color = colors(j)  # Assign the same color per species
+                axes[0].scatter(times, self.data.proportions[i][:, j], alpha=0.5, marker=marker, color=color)
+                axes[0].plot(times, self.predicted_proportions[i][:, j], color=color)
+        axes[0].set_title("Proportion Trends")
+        axes[0].legend(["Observed", "Predicted"], loc='upper right')
+        axes[0].set_yscale("log")
         
         # Abundances plot
-        sns.lineplot(data=dt_abund, x='time', y='x', hue='species', style='state', ax=axes[1])
-        axes[1].set_title('Abundance Trends')
+        for i in range(self.data.n_time_series):
+            times = self.data.times[i]
+            for j in range(self.data.abundances[i].shape[1]):
+                marker = markers[i % len(markers)]
+                color = colors(j)  # Assign the same color per species
+                axes[1].scatter(times, self.data.abundances[i][:, j], alpha=0.5, marker=marker, color=color)
+                axes[1].plot(times, self.predicted_abundances[i][:, j], color=color)
+        axes[1].set_title("Abundance Trends")
+        axes[1].set_yscale("log")
         
         plt.tight_layout()
         plt.show()
-
 
     def save_results(self):
             

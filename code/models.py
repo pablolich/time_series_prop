@@ -1,12 +1,15 @@
+"""
+File containing definition of model classes
+Current models implemented: 
+    1. Glv
+    2. Exponential
+"""
+
 import numpy as np
-import os
-import pickle
-from scipy.integrate import odeint, solve_ivp
 
 THRESH = 1e-16  # Threshold for small values
-PENALIZATION_ABUNDANCE = 1e-7  # Replacement for NaN values
 
-class GLVModel:
+class Glv:
     def __init__(self, dim):
         """
         Generalized Lotka-Volterra (GLV) model class.
@@ -18,7 +21,7 @@ class GLVModel:
         """
         self.dim = dim # Number of species
         self.n_model = dim * (dim + 1)  # Number of model parameters
-        self.model_name = "GLV"
+        self.model_name = "glv"
         self.dynamics_type = "dxdt"
 
     def dynamics(self, t, x, pars):
@@ -45,3 +48,25 @@ class GLVModel:
             }
         return params
 
+class Exponential:
+    def __init__(self, dim):
+
+        self.dim = dim  # Number of species
+        self.n_model = dim  # Number of model parameters (x0 and r)
+        self.model_name = "exponential"
+        self.dynamics_type = "x_t"
+
+    def dynamics(self, times, x0, pars):
+        r = pars["r"]
+        output = np.zeros((len(times), len(x0)))
+        
+        #compute exponential growth clipping very large and very small values
+        for i in range(len(x0)):
+            density = np.minimum(np.maximum(x0[i] * np.exp(r[i] * times), 
+                THRESH),1e6)
+            output[:, i] = density
+        
+        return output
+
+    def parse_model_parameters(self, dim, pars):
+        return {"r": pars[:dim].reshape(dim, 1)}

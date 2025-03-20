@@ -1,23 +1,20 @@
 # TODOS
 --------------------------------------------------------------------
-2. Separate model between intraspecific interactions versus interspecific interactions
 3. Prepare functionality to make it easy to do meta fitting with a bunch of models and datasets.
 4. Implement jax here
 5. Powers of ssq
-6. Simulated data with errors from a gamma distribution
 7. Find datasets and models that can describe the dataset. Maybe the models are very weird
 8. Describe each class at the beginning of the script
 9. Go through all files and comment carefuly
-10. Is how I am dealing with divergences (seting in proportions 1/n each) a good way to deal with that?
-11. Add model specific parameter bounds?
 
 PROBLEMS WITH DATA
 1. Discovering the models
 2. Data transformations that help?
 3. Which data set should we concentrate on?
+
 # QUESTIONS
 ---------------------------------------------------------------------
-1. How to penalize for divergences in integration
+10. Is how I am dealing with divergences (seting in proportions 1/n each) a good way to deal with that?
 
 --------------------------------------------------------------------
 #### Mar 17,2025
