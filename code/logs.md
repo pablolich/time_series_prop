@@ -1,10 +1,12 @@
 # TODOS
 --------------------------------------------------------------------
-3. Prepare functionality to make it easy to do meta fitting with a bunch of models and datasets.
-4. Implement jax here
-5. Powers of ssq
-7. Find datasets and models that can describe the dataset. Maybe the models are very weird
-8. When plotting, rescale all plots by initial conditions of observed
+1. Prepare functionality to make it easy to do meta fitting with a bunch of models and datasets.
+2. Implement jax here
+3. Powers of ssq
+4. Find datasets and models that can describe the dataset. Maybe the models are very weird
+5. When plotting, rescale all plots by initial conditions of observed
+6. Make aux_optimization.py a class of its own that will be inherited by fit. In this way its then easy to make optimization protocols with a few clicks.
+
 
 PROBLEMS WITH DATA
 1. Discovering the models

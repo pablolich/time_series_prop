@@ -11,12 +11,15 @@ code/
 │── data.py
 │── models.py
 │── cost_functions.py
-│── data/ #folder for dataset files and data.py class to read them
-│   ├── Davis
-│   ├── Hiltunen
-│   ├── Jo
-│   ├── glv_3spp
-│   ├── glv_4spp
+
+data/ #folder for dataset files and data.py class to read them
+├── Davis
+├── Hiltunen
+├── Jo
+├── glv_3spp
+├── glv_4spp
+
+results/ #folder for results
 ```
 
 ## 🚀 Overview
