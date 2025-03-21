@@ -3,27 +3,20 @@
 ## 📌 Project Structure
 ```
 code/
+│── __init__.py
 │── main.py
 │── fit.py
-│── integration_funcs.py
-│── optimization_funcs.py
-│── models/ #folder with models
-│   ├── __init__.py
-│   ├── glv.py
-│── cost/ #folder for cost functions
-│   ├── __init__.py
-│   ├── ssq_prop.py
-│   ├── log_prop.py
+│── aux_integration.py
+│── aux_optimization.py
+│── data.py
+│── models.py
+│── cost_functions.py
 │── data/ #folder for dataset files and data.py class to read them
-│   ├── __init__.py
-│   ├── data.py
 │   ├── Davis
 │   ├── Hiltunen
 │   ├── Jo
 │   ├── glv_3spp
 │   ├── glv_4spp
-│── opt_protocols/ #folder for dataset files and data.py class to read them
-│   ├── __init__.py
 ```
 
 ## 🚀 Overview
@@ -31,23 +24,13 @@ This project implements a pipeline for fitting a relative species abundance time
 
 ### **🔹 Components**
 1. **`data/`** - collection of datasets
-2. **`models/`** - Library of models 
-3. **`cost/`** - Library of cost functions
-5. **`data.py`** - Builds a data object given a dataset to be fed to the fit object
-6. **`fit.py`** - Combines data, model, and cost functions into a single object
-7. **`utils.py`** - Contains auxiliary functions such those for scoring results, integrating, and optimizing. 
-8. **`main.py`** - Runs the full pipeline
+2. **`models.py`** - Library of models writen as classes
+3. **`cost_functions.py`** - Library of cost functions as classes
+5. **`data.py`** - Class to create a data object from one of the datasets
+6. **`fit.py`** - Class combining data, model, and cost functions into a single object
+7. **`aux_integration.py`** - Auxiliary functions assisting with integration routines (processing integration outputs & status)  
+8. **`aux_optimization.py`** - Auxiliary functions assisting with optimization routines (different optimization techniques/strategies)
+8. **`main.py`** - Wrapper to run the full pipeline
 
 ---
-
-## 📌 Future Improvements
-- Implement additional **cost functions** (e.g., log-likelihood based).
-- Implement additional **models**
-- Support for multiple datasets in a single run.
-
----
-
-## 📄 License
-This project is open-source and available under the **MIT License**.
-
 
