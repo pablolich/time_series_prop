@@ -9,7 +9,7 @@ import numpy as np
 
 THRESH = 1e-16  # Threshold for small values
 
-class GlvComp:
+class Glv:
     def __init__(self, dim):
         """
         Generalized Lotka-Volterra (GLV) model class.
@@ -33,7 +33,7 @@ class GlvComp:
         :return: dx/dt as a NumPy array
         """
         x = np.maximum(x, THRESH)  # Apply threshold
-        dx = x * (pars["r"] - np.dot(pars["A"], x))
+        dx = x * (pars["r"] + np.dot(pars["A"], x))
         return dx
 
     def parse_model_parameters(self, dim, pars):

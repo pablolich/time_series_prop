@@ -32,11 +32,11 @@ def nelder_bfgs(fit, weights=None, n_rounds=10):
     round_i = 0
 #    fit = hc_k(fit.par_ix_model, fit)
     while round_i < n_rounds:
-        #fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)))
-        #fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)), 
-            #method = "BFGS")
-        fit.optimize(fit.par_ix_model)
-        fit.optimize(fit.par_ix_model, method = 'BFGS')
+        fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)))
+        fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)), 
+            method = "BFGS")
+        #fit.optimize(fit.par_ix_model)
+        #fit.optimize(fit.par_ix_model, method = 'BFGS')
         round_i += 1
     return fit
 

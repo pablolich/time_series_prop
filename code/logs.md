@@ -4,8 +4,7 @@
 4. Implement jax here
 5. Powers of ssq
 7. Find datasets and models that can describe the dataset. Maybe the models are very weird
-8. Describe each class at the beginning of the script
-9. Go through all files and comment carefuly
+8. When plotting, rescale all plots by initial conditions of observed
 
 PROBLEMS WITH DATA
 1. Discovering the models
