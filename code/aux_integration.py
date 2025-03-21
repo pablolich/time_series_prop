@@ -45,13 +45,14 @@ def process_integration_result(solution, times):
         # Check for negative values and set them to THRESH
         result[result < 0] = THRESH
         return result 
-    elif int_status == -1: #integration failed
-        #solution is composed of current result plus very high abundances
+    elif int_status == -1:  # Integration failed
         result = solution.y
         result[result < 0] = THRESH
         n_successful = np.shape(result)[1]
         n_complete = len(times) - n_successful
-        high_values = 1e6*np.ones((np.shape(result)[0], n_complete))
-        return(np.concatenate([result, high_values], axis = 1).T)
+        high_values = np.ones((np.shape(result)[0], n_complete)) * 1e6
+        high_values[1:,:] = 1e-6
+        ret = np.concatenate([result, high_values], axis=1).T
+        return ret
     else:
         print("I don't know what to do with this integration status")

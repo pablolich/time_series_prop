@@ -3,6 +3,7 @@ File containing optimization protocols
 """
 
 from aux_integration import *
+from aux_optimization import *
 
 import itertools
 import random
@@ -31,13 +32,11 @@ def nelder_bfgs(fit, weights=None, n_rounds=10):
     round_i = 0
 #    fit = hc_k(fit.par_ix_model, fit)
     while round_i < n_rounds:
-        fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)))
-        fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)), 
-            method = "BFGS")
-        #fit.optimize(fit.par_ix_model)
-        #fit.optimize(fit.par_ix_model, method = 'BFGS')
-        print(round_i)
-        print(fit.cost_value)
+        #fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)))
+        #fit.optimize(np.concatenate((fit.par_ix_data, fit.par_ix_model)), 
+            #method = "BFGS")
+        fit.optimize(fit.par_ix_model)
+        fit.optimize(fit.par_ix_model, method = 'BFGS')
         round_i += 1
     return fit
 
@@ -67,12 +66,9 @@ def reveal_optimize_refine(fit, weights, n_rounds=100):
         #Adjust weights for the log function if they exist
         if len(fit.par_ix_cost) > 0:
             fit.optimize(fit.par_ix_cost) 
-        # Adjust ODE parameters
-        fit.optimize(fit.par_ix_model, weight=weight)
+        # Adjust ODE parameters through several rounds of NM and BFGS
+        fit = nelder_bfgs(fit, weight, n_rounds = 1)
         #Adjust both parameter groups simultaneously
-        fit.optimize(np.concatenate((fit.par_ix_model, fit.par_ix_cost)),
-                weight=weight)
-
         print(f"Weight: {weight}, Goal: {fit.cost_value}")
 
         for ss in range(n_rounds):

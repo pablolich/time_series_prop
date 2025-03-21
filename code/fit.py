@@ -157,7 +157,7 @@ class Fit:
             x0=initial_values,
             args=(positions, weight),
             method=method,
-            options={'maxiter': 250, 'disp': True}
+            options={'maxiter': 250, 'disp': False}
         )
         
         new_goal = self.to_minimize(res.x, positions, weight)

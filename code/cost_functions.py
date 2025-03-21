@@ -13,7 +13,7 @@ from scipy.stats import dirichlet
 
 class Ssq:
 
-    def __init__(self):
+    def __init__(self, dim):
 
         self.n_cost = 0 #number of parameters
         self.cost_name = "ssq"
@@ -112,8 +112,8 @@ class Dirichlet:
             #rescale absolute predictions by w
             pred = predicted[i]*w
             # Calculate likelihood for each time point
-            lik_i_vec = np.array([dirichlet.logpdf(obs[i], pred[i]) for \
-                    i in range(len(pred))])
+            lik_i_vec = np.array([dirichlet.logpdf(obs[row_i], pred[row_i]) for \
+                    row_i in range(len(pred))])
             weighted_lik_i_vec = lik_i_vec
 
             if weight is not None:
