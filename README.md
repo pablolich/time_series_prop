@@ -1,4 +1,4 @@
-# GLV Model Fitting Pipeline
+# Infering absolute abundances from compositional data
 
 ## 📌 Project Structure
 ```
