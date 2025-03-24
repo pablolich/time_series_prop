@@ -1,6 +1,6 @@
 # Infering absolute abundances from compositional data
 
-## 📌 Project Structure
+## Project Structure
 ```
 code/
 │── __init__.py
@@ -24,10 +24,9 @@ data/ #folder for dataset files and data.py class to read them
 results/ #folder for results
 ```
 
-## 🚀 Overview
+##  Overview
 This project implements a pipeline for fitting a relative species abundance time-series data to different models of population dynamics, using different cost functions to evaluate the goodness of fit. 
 
-### **🔹 Components**
 1. **`main.py`** - Wrapper to run the full pipeline
 2. **`fit.py`** - Class combining data, model, and cost functions into a single object
 3. **`data.py`** - Class to create a data object from one of the datasets
