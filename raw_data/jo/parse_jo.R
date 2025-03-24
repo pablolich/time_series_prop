@@ -56,7 +56,7 @@ parsed <- parsed %>% pivot_wider(names_from = population,
 for (cm in sort(unique(parsed$community))){
   p1 <- parsed %>% filter(community == cm) 
   for (rp in unique(p1$replicate)){
-    p2 = p1 %>% filter(replicate==rp) %>% select(-community)
-    write_csv(p2, file = paste0("../../data/jo/cm, "_", rp, ".csv"))
+    p2 = p1 %>% filter(replicate==rp) %>% select(-c(community, replicate))
+    write_csv(p2, file = paste0("../../data/jo/", cm, "_", rp, ".csv"))
   }
 }

@@ -16,7 +16,7 @@ from aux_optimization import *
 from opt_protocols import *
 
 #get file names
-path_name = "../data/davis"
+path_name = "../data/jo"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
