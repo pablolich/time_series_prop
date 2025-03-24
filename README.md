@@ -13,6 +13,8 @@ code/
 │── aux_optimization.py
 │── opt_protocols.py
 │── logs.md
+│── symbolic_regression/
+    │── pysr_first_test.py
 
 data/ #folder for dataset files and data.py class to read them
 ├── davis (exp)

@@ -6,7 +6,8 @@ THRESH = 1E-10
 dt <- read_xlsx(path = "Cocultured_data.xlsx", sheet = 1)
 dt <- dt %>% select(Time, Experiment, Replicate, Passage, VC, EC, SA) %>% drop_na()
 dt <- dt %>% mutate(RP = paste0(Replicate, "-", Passage)) 
-dt <- dt %>% pivot_longer(names_to = "Species", values_to = "Fluorescence", cols = -c(Time, Experiment, RP, Replicate, Passage))
+dt <- dt %>% pivot_longer(names_to = "Species", values_to = "Fluorescence", cols = -c(Time, Experiment, RP, Replicate, Passage)) %>% 
+  filter(Time > 5)
 #eiliminate any period of times with negative fluorescences and shift time accordingly
 dt_no_negs <- dt %>% 
   group_by(Passage, Experiment) %>% 
