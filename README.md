@@ -6,18 +6,20 @@ code/
 │── __init__.py
 │── main.py
 │── fit.py
-│── aux_integration.py
-│── aux_optimization.py
 │── data.py
 │── models.py
 │── cost_functions.py
+│── aux_integration.py
+│── aux_optimization.py
+│── opt_protocols.py
+│── logs.md
 
 data/ #folder for dataset files and data.py class to read them
-├── Davis
-├── Hiltunen
-├── Jo
-├── glv_3spp
-├── glv_4spp
+├── davis (exp)
+├── jo (exp)
+├── exponential_errors_gamma (synth)
+├── glv_3spp (synth)
+├── glv_4spp (synth)
 
 results/ #folder for results
 ```
