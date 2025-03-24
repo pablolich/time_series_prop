@@ -6,6 +6,10 @@
 4. Find datasets and models that can describe the dataset. Maybe the models are very weird
 5. When plotting, rescale all plots by initial conditions of observed
 6. Make aux_optimization.py a class of its own that will be inherited by fit. In this way its then easy to make optimization protocols with a few clicks.
+7. Prepare data for folks: Jo and Davis. For Jo, don't average data, put all replicates (except 7). For Davis, divide by the blank measurements. Generate clean data for our data folder, and create a new folder called raw_data where I put each data set folder, and inside I drop the paper, the original csv file, and the code in R to parse it. 
+8. Add functionality to plot the data sets.add a method to the data object
+9. Add functionality to change integration method: use euler if data doesn't vary too much. If RK45 is used, then interrupt integration when diverging. 
+10. Profile the code
 
 
 PROBLEMS WITH DATA

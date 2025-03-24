@@ -16,18 +16,22 @@ class Data:
         
         # Observed data
         self.abundances = []
+        self.proportions = []
         self.times = []
         
         # Read files and store contents
         for fn in file_names:
             data = pd.read_csv(fn)
             tmp = data.values
-            #store observation times
-            self.times.append(tmp[:, 0].astype(float))
-            #store abundances, and compute proportions
-            self.abundances.append(tmp[:, 1:].astype(float))
-            self.proportions = [x / np.sum(x, axis = 1, keepdims = True) \
-                    for x in self.abundances]
+            abundances = tmp[:,1:]
+            total = np.sum(abundances, axis = 1)
+            proportions = np.array([x / np.sum(x) for x in abundances])
+            proportions[np.sum(abundances, axis = 1) == 0] = 0
+            times = tmp[:,0]
+            #store observation times, abundances and proportions
+            self.times.append(times)
+            self.abundances.append(abundances)
+            self.proportions.append(proportions)
         
         #get names of columns
         self.pop_names = data.columns[1:].tolist()

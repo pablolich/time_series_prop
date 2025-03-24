@@ -27,8 +27,8 @@ class Fit:
         self.cost = cost
 
         #initialize time series predictions
-        self.predicted_abundances = np.zeros_like(self.data.abundances)     
-        self.predicted_proportions = np.zeros_like(self.data.abundances)  
+        self.predicted_abundances = []
+        self.predicted_proportions = []
         
         #initialize cost function value, vector of parameters and random seed
         self.cost_value = 0.0  
