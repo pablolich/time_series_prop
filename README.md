@@ -28,14 +28,14 @@ results/ #folder for results
 This project implements a pipeline for fitting a relative species abundance time-series data to different models of population dynamics, using different cost functions to evaluate the goodness of fit. 
 
 ### **🔹 Components**
-1. **`data/`** - collection of datasets
-2. **`models.py`** - Library of models writen as classes
-3. **`cost_functions.py`** - Library of cost functions as classes
-5. **`data.py`** - Class to create a data object from one of the datasets
-6. **`fit.py`** - Class combining data, model, and cost functions into a single object
-7. **`aux_integration.py`** - Auxiliary functions assisting with integration routines (processing integration outputs & status)  
-8. **`aux_optimization.py`** - Auxiliary functions assisting with optimization routines (different optimization techniques/strategies)
-8. **`main.py`** - Wrapper to run the full pipeline
+1. **`main.py`** - Wrapper to run the full pipeline
+2. **`fit.py`** - Class combining data, model, and cost functions into a single object
+3. **`data.py`** - Class to create a data object from one of the datasets
+4. **`models.py`** - Library of models writen as classes
+5. **`cost_functions.py`** - Library of cost functions as classes
+6. **`aux_integration.py`** - Auxiliary functions assisting with integration routines (processing integration outputs & status)  
+7. **`aux_optimization.py`** - Auxiliary functions assisting with optimization routines (different optimization techniques/strategies)
+8. **`opt_protocols.py`** - Functions executing different optimization protocols
 
 ---
 
