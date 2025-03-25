@@ -37,26 +37,58 @@ parsed <- rbind(parsed, get_tb_all(c(1,21,41), "AO", "AO") )
 parsed <- rbind(parsed, get_tb_all(c(5,25,45), "LP", "LP") )
 parsed <- rbind(parsed, get_tb_all(c(4,24,44), "LB", "LB") )
 
+parsed <- parsed %>% 
+mutate(pair = case_when(
+  replicate %in% c("B1", "B2") ~ "Rep1",
+  replicate %in% c("D1", "D2") ~ "Rep2",
+  replicate %in% c("F1", "F2") ~ "Rep3",
+  replicate %in% c("B3", "B4") ~ "Rep4",
+  replicate %in% c("D3", "D4") ~ "Rep5",
+  replicate %in% c("F3", "F4") ~ "Rep6",
+  replicate %in% c("B5", "B6") ~ "Rep7",
+  replicate %in% c("D5", "D6") ~ "Rep8",
+  replicate %in% c("F5", "F6") ~ "Rep9",
+  replicate %in% c("B7", "B8") ~ "Rep10",
+  replicate %in% c("C7", "C8") ~ "Rep11",
+  replicate %in% c("A1", "A5") ~ "Rep12",
+  replicate %in% c("C1", "C5") ~ "Rep13",
+  replicate %in% c("E1", "E5") ~ "Rep14",
+  replicate %in% c("A4", "A5") ~ "Rep15",
+  replicate %in% c("C4", "C5") ~ "Rep16",
+  replicate %in% c("E4", "E5") ~ "Rep17",
+  TRUE ~ "Unpaired"
+)) %>% 
+  select(-replicate)
+
+
 # rarefy the data
 timepoints <- c(seq(2, 96, by = 0.25))
 parsed <- parsed %>% filter(time %in% timepoints)
+
 
 #plot
 ggplot(parsed, 
        aes(x = time,
            y = density,
            color = population))+
-  geom_line(aes(group = interaction(population, replicate)))+
+  geom_line(aes(group = interaction(population, pair)))+
   facet_wrap(~community)
 
-parsed <- parsed %>% pivot_wider(names_from = population, 
-                                 values_from = density, 
-                                 values_fill = 0)
+parsed_aolb = parsed %>% filter(community == "AO-LB",
+                                pair == "Rep4") %>% 
+  pivot_wider(names_from = population,
+              values_from = density)
 
+species = c("AO", "LB", "LP")
+  
 for (cm in sort(unique(parsed$community))){
-  p1 <- parsed %>% filter(community == cm) 
-  for (rp in unique(p1$replicate)){
-    p2 = p1 %>% filter(replicate==rp) %>% select(-c(community, replicate))
+  p1 <- parsed %>% filter(community == cm)
+  for (rp in unique(p1$pair)){
+    p2 = p1 %>% filter(pair==rp) %>% 
+      pivot_wider(names_from = population,
+                  values_from = density, 
+                  values_fill = 0) %>% 
+      select(-c(community, pair))
     write_csv(p2, file = paste0("../../data/jo/", cm, "_", rp, ".csv"))
   }
 }
