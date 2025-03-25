@@ -25,7 +25,7 @@ dt <- dt %>% select(-`T° 600`)
 parsed <- tibble()
 
 parsed <- get_tb_all(c(11,31,51), "AO", "AO-LP") # removed 7 because it is very different
-parsed <- rbind(parsed, get_tb_all(c(12,32,52,8), "LP", "AO-LP") )
+parsed <- rbind(parsed, get_tb_all(c(12,32,52), "LP", "AO-LP") ) #removed 8 because its paired with 7
 
 parsed <- rbind(parsed, get_tb_all(c(13,33,53,17), "AO", "AO-LB") )
 parsed <- rbind(parsed, get_tb_all(c(14,34,54,18), "LB", "AO-LB") )
