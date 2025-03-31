@@ -80,15 +80,25 @@ parsed_aolb = parsed %>% filter(community == "AO-LB",
               values_from = density)
 
 species = c("AO", "LB", "LP")
-  
-for (cm in sort(unique(parsed$community))){
+for (cm in sort(unique(parsed$community))) {
   p1 <- parsed %>% filter(community == cm)
-  for (rp in unique(p1$pair)){
-    p2 = p1 %>% filter(pair==rp) %>% 
-      pivot_wider(names_from = population,
-                  values_from = density, 
-                  values_fill = 0) %>% 
+  
+  for (rp in unique(p1$pair)) {
+    p2 <- p1 %>% filter(pair == rp) %>%
+      pivot_wider(names_from = population, values_from = density) %>%
       select(-c(community, pair))
+    
+    # Ensure all species are present as columns in the correct order
+    for (sp in species) {
+      if (!(sp %in% colnames(p2))) {
+        p2[[sp]] <- 0  # Add missing species with zero values
+      }
+    }
+    
+    # Reorder columns to match the species vector
+    p2 <- p2 %>% select(c(time, all_of(species)))
+    
+    # Write the dataframe to a CSV file
     write_csv(p2, file = paste0("../../data/jo/", cm, "_", rp, ".csv"))
   }
 }

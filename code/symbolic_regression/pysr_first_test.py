@@ -22,58 +22,47 @@ def find_k_nonzero_column_indices(array_list, k):
     
     return indices
 
-path_name = "../../data/jo"
+path_name = "../../data/fodelianakis_2018"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
 #load all datasets
-data_jo = data.Data(file_list)
-import ipdb; ipdb.set_trace(context = 20)
-inds_mono = find_k_nonzero_column_indices(data_jo.abundances, 2)
-import ipdb; ipdb.set_trace(context = 20)
+data_fd = data.Data(file_list)
+#inds_mono = find_k_nonzero_column_indices(data_jo.abundances, 2)
 #get only the first time series for now
-X = data_jo.abundances[0]
-import ipdb; ipdb.set_trace(context = 20)
-t = data_jo.times[0]
+X = data_fd.abundances[0]
+t = data_fd.times[0]
+#t_target = t[1::8]
+#X_target = X[1::8]
 #get dxdt
-import ipdb; ipdb.set_trace(context = 20)
-y = np.diff(X, axis = 0)/np.diff(t)
+#y = np.diff(X_target, axis = 0)/(np.diff(t_target))
+y = np.diff(X, axis = 0)
 
 model = PySRRegressor(
     maxsize=20,
     niterations=80,  # < Increase me for better results
-    binary_operators=["+", "-", "*", "/", "^"],
-    unary_operators=[
-        "exp",
-        "log10",
-        "neg",
-        "square",
-        "cube",
-        "sqrt",
-    ],
-    elementwise_loss="loss(prediction, target) = (prediction - target)^2",
+    constraints = {"^":(-1, 1)},
+    binary_operators=["+", "-", "*", "^"]
 )
 
-X = X[1:].reshape(-1, 1)
+#X = X_target[1:].reshape(-1, 1)
+X = X[0:-1,:]
 model.fit(X, y)
 
 print(model)
 
-plt.scatter(X, y, color='blue', label='Actual Data')
-
-# Overlay the predicted lines for each equation in the model
-for i in range(len(model.equations_)):
-    ypred = model.predict(X, i)
-    plt.plot(X, ypred, label=f'Equation {i+1}', linestyle='--')
-
-# Labels and legend
-plt.xlabel('X')
-plt.ylabel('y')
-plt.legend()
-plt.title('Scatter plot with predicted lines')
-plt.show()
 import ipdb; ipdb.set_trace(context = 20)
 
-#predict to check visually
-#next, write down the equation and compare to see if I am getting good results
+#plt.scatter(X, y, color='blue', label='Actual Data')
 
+## Overlay the predicted lines for each equation in the model
+#for i in range(len(model.equations_)):
+#    ypred = model.predict(X, i)
+#    plt.plot(X, ypred, label=f'Equation {i+1}', linestyle='--')
+#
+## Labels and legend
+#plt.xlabel('X')
+#plt.ylabel('y')
+#plt.legend()
+#plt.title('Scatter plot with predicted lines')
+#plt.show()
