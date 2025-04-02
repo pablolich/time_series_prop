@@ -1,5 +1,7 @@
 import time
 
+import numpy as np
+
 import diffrax
 import equinox as eqx  # https://github.com/patrick-kidger/equinox
 import jax
@@ -7,6 +9,7 @@ import jax.nn as jnn
 import jax.numpy as jnp
 import jax.random as jr
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import optax  # https://github.com/deepmind/optax
 
 import sys
@@ -18,7 +21,7 @@ sys.path.append(parent_dir)
 
 import data
 
-path_name = "../../data/glv_4spp"
+path_name = "../../data/glv_generic"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -83,8 +86,8 @@ schedule = optax.exponential_decay(init_value = 0.001,
 
 def main(
     batch_size=1,
-    lr_strategy=(0.01, schedule),
-    steps_strategy=(500, 1000000),
+    lr_strategy=(0.001, schedule),
+    steps_strategy=(500, 500000),
     length_strategy=(1, 1),
     width_size=16,
     depth=2,
@@ -96,8 +99,11 @@ def main(
     data_key, model_key, loader_key = jr.split(key, 3)
 
     data_glv4 = data.Data(file_list)
-    ys = jnp.array(data_glv4.proportions)
-    xs = jnp.array(data_glv4.abundances)
+    indices = [0, 1, 2, 3, 4,  5, 6, 7]
+    data_prop = [data_glv4.proportions[i] for i in indices]
+    data_abund = [data_glv4.abundances[i] for i in indices]
+    ys = jnp.array(data_prop)
+    xs = jnp.array(data_abund)
     ts = jnp.array(data_glv4.times[0])
 
     _, length_size, data_size = ys.shape
@@ -113,7 +119,7 @@ def main(
     @eqx.filter_value_and_grad
     def grad_loss(model, ti, yi):
         y_pred = jax.vmap(model, in_axes=(None, 0))(ti, yi[:, 0])
-        #T = y_pred.sum(axis = -1, keepdims = True) #get predicted totals
+        T = y_pred.sum(axis = -1, keepdims = True) #get predicted totals
         y_pred_normalized = y_pred / T
         #errors can only be big if the totals are small (assumed sampling errors)
         return jnp.mean((yi - y_pred_normalized) ** 2)
@@ -138,36 +144,64 @@ def main(
             end = time.time()
             if (step % print_every) == 0 or step == steps - 1:
                 print(f"Step: {step}, Loss: {loss}, Computation time: {end - start}")
+    nexp = 4
+    nrep = 2
     if plot:
-        # Set up the figure and axes for two panels
-        plt.figure(figsize=(14, 6))
 
-        # Define a color palette for the species
-        colors = ['dodgerblue', 'green', 'orange', 'red']
+        # Define a colormap for species differentiation
+        base_colors = list(mcolors.TABLEAU_COLORS.values())  # Base colors for species
+        num_species = ys[0].shape[1]
 
-        # Loop over datasets (each dataset corresponds to one entry in `ys`)
-        for i, (proportions, abundances) in enumerate(zip(ys, xs)):
-            # First panel: Proportions of the normalized predictions vs the real data
-            for j in range(proportions.shape[1]):  # Loop over species in the dataset
-                # Normalize the model's predictions by dividing by the total at each time point
-                model_y = model(ts, proportions[0, :])  # Model predictions
-                model_y_normalized = model_y / model_y.sum(axis=-1, keepdims=True)  # Normalize
+        # Generate two shades for each species (one for each replicate)
+        replicate_colors = [
+            (mcolors.to_rgba(base, alpha=0.8), mcolors.to_rgba(base, alpha=0.5))  # Brighter and darker shade
+            for base in base_colors[:num_species]
+        ]
 
-                # First panel: Proportions plot (normalized predictions vs real data)
-                ax1 = plt.subplot(2, 3, i+1)
-                ax1.plot(ts, proportions[:, j], label=f"Real Species {j+1}", linestyle='-', color=colors[j])
-                ax1.plot(ts, model_y_normalized[:, j], label=f"Model Species {j+1}", linestyle='--', color=colors[j])
+        fig, axes = plt.subplots(2, nexp, figsize=(16, 8))  # 2 rows, 4 columns
 
-                # Second panel: Forward propagation (abundances vs model forward predictions)
-                ax2 = plt.subplot(2, 3, i+4)
-                ax2.plot(ts, abundances[:, j], label=f"Real Abundance - Species {j+1}", linestyle='-', color=colors[j])
-                model_y = model(ts, abundances[0, :])  # Forward propagation of the model (non-normalized) #CHEATING
-                ax2.plot(ts, model_y[:, j], label=f"Model Forward Propagation - Species {j+1}", linestyle='--', color=colors[j])
+        # Loop through the four experiments
+        for exp in range(nexp):
+            for rep in range(nrep):  # Two replicates per experiment
+                idx = 2 * exp + rep  # Data index
+                proportions = ys[idx]
+                abundances = xs[idx]
+                
+                # Model predictions (normalize for proportions)
+                model_y = model(ts, proportions[0, :])  
+                model_y_normalized = model_y / model_y.sum(axis=-1, keepdims=True)
 
-        # Adjusting the layout and adding labels/legends
+                # Top row: Proportions
+                ax1 = axes[0, exp]
+                for j in range(num_species):
+                    real_color, model_color = replicate_colors[j]  # Shades for species
+
+                    ax1.plot(ts, proportions[:, j], linestyle='-', color=real_color, label=f"Real S{j+1} (Rep {rep+1})")
+                    ax1.plot(ts, model_y_normalized[:, j], linestyle='--', color=model_color, label=f"Model S{j+1} (Rep {rep+1})")
+                
+                # Bottom row: Abundances (log scale)
+                ax2 = axes[1, exp]
+                model_y = model(ts, abundances[0, :])  # Model forward propagation
+
+                for j in range(num_species):
+                    real_color, model_color = replicate_colors[j]
+
+                    ax2.plot(ts, abundances[:, j], linestyle='-', color=real_color, label=f"Real S{j+1} (Rep {rep+1})")
+                    ax2.plot(ts, model_y[:, j], linestyle='--', color=model_color, label=f"Model S{j+1} (Rep {rep+1})")
+
+                ax2.set_xlabel("Time")
+
+                # Formatting
+                axes[0, exp].set_title(f"Experiment {exp+1}")
+                axes[1, exp].set_xlabel("Time")
+                axes[0, exp].set_ylabel("Proportion")
+                axes[1, exp].set_ylabel("Abundance (log scale)")
+
+        # Adjust layout, add legends
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(1.15, 1))
+
         plt.tight_layout()
-
-        # Save and show the plot
         plt.savefig("neural_ode_comparison.png")
         plt.show()
 

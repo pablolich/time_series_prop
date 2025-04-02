@@ -22,7 +22,7 @@ params <- c(
 )
 
 # Time span
-time <- seq(0, 50, by = 0.5)
+time <- seq(0, 25, by = 0.25)
 
 # Three different initial conditions
 initial_conditions <- list(
