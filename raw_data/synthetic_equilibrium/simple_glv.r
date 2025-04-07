@@ -38,7 +38,7 @@ initial_conditions <- list(
 )
 
 # Simulate and save results
-for (i in 1:3) {
+for (i in 1:1) {
   out <- ode(y = initial_conditions[[i]], times = time, func = glv, parms = params)
   write.csv(out, paste0("simple_glv", i, ".csv"), row.names = FALSE)
 }
@@ -61,5 +61,5 @@ plot2 <- plot_glv("simple_glv2.csv", "GLV Chaotic Simulation - Initial Condition
 plot3 <- plot_glv("simple_glv3.csv", "GLV Chaotic Simulation - Initial Condition 3")
 
 plot1
-plot2
-plot3
+#plot2
+#plot3
