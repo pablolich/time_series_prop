@@ -1,4 +1,7 @@
 library(deSolve)
+library(reshape2)
+library(MCMCprecision)  # For Dirichlet distribution sampling
+
 
 # Define the GLV system
 glv <- function(t, state, parameters) {
@@ -24,9 +27,12 @@ params <- c(
 # Time span
 time <- seq(0, 50, by = 0.5)
 
+init_1 <- dirichlet_init(c(1, 1,1, 1))
+init_2 <- dirichlet_init(c(1, 1,1, 1))
+init_3 <- dirichlet_init(c(1, 1,1, 1))
 # Three different initial conditions
 initial_conditions <- list(
-  c(x1 = 0.3, x2 = 0.4, x3 = 0.5, x4 = 0.6),
+  c(x1 = init_1[1], x2 = init_1[2], x3 = init_1[3], x4 = init_1[4]),
   c(x1 = 0.45, x2 = 0.2, x3 = 0.6, x4 = 0.35),
   c(x1 = 0.2, x2 = 0.1, x3 = 0.3, x4 = 0.4)
 )
@@ -50,9 +56,9 @@ plot_glv <- function(file_name, title) {
 }
 
 # Plot each simulation
-plot1 <- plot_glv("simple_glv_1.csv", "GLV Chaotic Simulation - Initial Condition 1")
-plot2 <- plot_glv("simple_glv_2.csv", "GLV Chaotic Simulation - Initial Condition 2")
-plot3 <- plot_glv("simple_glv_3.csv", "GLV Chaotic Simulation - Initial Condition 3")
+plot1 <- plot_glv("simple_glv1.csv", "GLV Chaotic Simulation - Initial Condition 1")
+plot2 <- plot_glv("simple_glv2.csv", "GLV Chaotic Simulation - Initial Condition 2")
+plot3 <- plot_glv("simple_glv3.csv", "GLV Chaotic Simulation - Initial Condition 3")
 
 plot1
 plot2

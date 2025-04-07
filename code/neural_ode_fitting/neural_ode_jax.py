@@ -21,7 +21,7 @@ sys.path.append(parent_dir)
 
 import data
 
-path_name = "../../data/glv_generic"
+path_name = "../../data/glv_4_chaos"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -53,7 +53,7 @@ class NeuralODE(eqx.Module):
     def __call__(self, ts, y0):
         solution = diffrax.diffeqsolve(
             diffrax.ODETerm(self.func),
-            diffrax.Tsit5(),
+            diffrax.Euler,
             t0=ts[0],
             t1=ts[-1],
             dt0=ts[1] - ts[0],
@@ -87,11 +87,11 @@ schedule = optax.exponential_decay(init_value = 0.001,
 def main(
     batch_size=1,
     lr_strategy=(0.001, schedule),
-    steps_strategy=(500, 500000),
+    steps_strategy=(500, 5000),
     length_strategy=(1, 1),
-    width_size=16,
-    depth=2,
-    seed=2,
+    width_size=64,
+    depth=3,
+    seed=1,
     plot=True,
     print_every=100,
 ):
@@ -99,9 +99,10 @@ def main(
     data_key, model_key, loader_key = jr.split(key, 3)
 
     data_glv4 = data.Data(file_list)
-    indices = [0, 1, 2, 3, 4,  5, 6, 7]
-    data_prop = [data_glv4.proportions[i] for i in indices]
-    data_abund = [data_glv4.abundances[i] for i in indices]
+    #indices = [0, 1, 2, 3, 4,  5, 6, 7]
+    #data_prop = [data_glv4.proportions[i] for i in indices]
+    data_prop = data_glv4.proportions
+    data_abund = data_glv4.abundances
     ys = jnp.array(data_prop)
     xs = jnp.array(data_abund)
     ts = jnp.array(data_glv4.times[0])
@@ -118,8 +119,12 @@ def main(
 
     @eqx.filter_value_and_grad
     def grad_loss(model, ti, yi):
+        #forward propagation of model (in log space)
         y_pred = jax.vmap(model, in_axes=(None, 0))(ti, yi[:, 0])
-        T = y_pred.sum(axis = -1, keepdims = True) #get predicted totals
+        #get abundances
+        #y_pred = jnp.exp(z_pred)
+        #get totals of forward propagation
+        T = y_pred.sum(axis = -1, keepdims = True)
         y_pred_normalized = y_pred / T
         #errors can only be big if the totals are small (assumed sampling errors)
         return jnp.mean((yi - y_pred_normalized) ** 2)
@@ -144,8 +149,8 @@ def main(
             end = time.time()
             if (step % print_every) == 0 or step == steps - 1:
                 print(f"Step: {step}, Loss: {loss}, Computation time: {end - start}")
-    nexp = 4
-    nrep = 2
+    nexp = 3
+    nrep = 1
     if plot:
 
         # Define a colormap for species differentiation

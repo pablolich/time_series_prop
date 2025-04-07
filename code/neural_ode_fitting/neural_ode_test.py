@@ -13,7 +13,7 @@ sys.path.append(parent_dir)
 
 import data
 
-path_name = "../../data/glv_4spp"
+path_name = "../../data/glv_generic"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -25,11 +25,11 @@ class PopulationODE(nn.Module):
     def __init__(self):
         super(PopulationODE, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(4, 64),
+            nn.Linear(3, 64),
             nn.Tanh(),
             nn.Linear(64, 64),
             nn.Tanh(),
-            nn.Linear(64, 4)
+            nn.Linear(64, 3)
         )
 
     def forward(self, t, y):
@@ -59,7 +59,7 @@ optimizer = torch.optim.Adam(neural_ode_func.parameters(), lr=0.005)
 # Define learning rate range
 eta_initial = 0.01
 eta_final = 0.0001
-total_epochs = 20000
+total_epochs = 1500
 
 # Compute adaptive gamma
 gamma = np.exp(np.log(eta_final / eta_initial) / total_epochs)
@@ -76,7 +76,7 @@ for epoch in range(total_epochs):
     optimizer.zero_grad()
     total_loss = 0.0
 
-    for i in range(3):
+    for i in range(n_time_series):
         X_train = torch.tensor(data_glv4.proportions[i], dtype=torch.float32)
         T_train = torch.tensor(data_glv4.times[i], dtype=torch.float32)
         seq_length = X_train.shape[0]
@@ -86,8 +86,16 @@ for epoch in range(total_epochs):
 
         
         # Apply the mask (only compare predicted values for revealed parts)
-        int_sol = odeint(neural_ode_func, X_train[0], T_train)
+        init_conds = torch.log(X_train[0])
+        int_sol = odeint(neural_ode_func, 
+                torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
+                T_train)
+        #zero out species that are not present in the solution
+        ind_absent = torch.where(int_sol[0,:] == 0)
+        int_sol = torch.exp(int_sol)
+        #int_sol[:,ind_absent[0]] = 0
         pred_props = int_sol / int_sol.sum(dim=1, keepdim=True)
+
         
         # Compute weighted loss
         # Compute the difference (predicted - true values)
@@ -116,26 +124,34 @@ print("Training complete!")
 with torch.no_grad():
     learned_abundances = []
     learned_proportions = []
-    for i in range(3):
+    for i in range(n_time_series):
         X_train = torch.tensor(data_glv4.abundances[i], dtype=torch.float32) #cheating
         T_train = torch.tensor(data_glv4.times[i], dtype=torch.float32)
-        learned_abundance = odeint(neural_ode_func, X_train[0], T_train)
-        learned_proportion = learned_abundance/learned_abundance.sum(dim=1, keepdim=True)
+        # Apply the mask (only compare predicted values for revealed parts)
+        init_conds = torch.log(X_train[0])
+        learned_abundance = odeint(neural_ode_func, 
+                torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
+                T_train)
+        #zero out species that are not present in the solution
+        ind_absent = torch.where(learned_abundance[0,:] == 0)
+        learned_abundance = torch.exp(learned_abundance)
+        learned_abundance[:,ind_absent[0]] = 0
 
+        learned_proportion = learned_abundance/learned_abundance.sum(dim=1, keepdim=True)
         learned_abundances.append(learned_abundance)
         learned_proportions.append(learned_proportion) 
 
-plt.figure(figsize=(10, 5))
-labels = ["Species 1", "Species 2", "Species 3", "Species 4"]
+plt.figure(figsize=(18, 5))
+labels = ["Species 1", "Species 2", "Species 3"]
 
-for i in range(3):#loop through initial conditions
-    for j in range(4): #loop through species
-        plt.subplot(2, 3, i+1) #one system in each plot
+for i in range(n_time_series):#loop through initial conditions
+    for j in range(3): #loop through species
+        plt.subplot(2, n_time_series, i+1) #one system in each plot
         # Plot solid line first and get color
         line, = plt.plot(T_train, data_glv4.proportions[i][:, j], label=f"Init {i+1}")
         plt.plot(T_train, learned_proportions[i][:, j], linestyle="dashed", color=line.get_color())  # Use same color
         
-        plt.subplot(2, 3, 3+i+1)
+        plt.subplot(2, n_time_series, i+1+n_time_series)
         line, = plt.plot(T_train, data_glv4.abundances[i][:, j], label=f"Init {i+1}")
         plt.plot(T_train, learned_abundances[i][:, j], linestyle="dashed", color=line.get_color())  # Use same color
 
