@@ -13,7 +13,7 @@ sys.path.append(parent_dir)
 
 import data
 
-path_name = "../../data/glv_generic"
+path_name = "../../data/synthetic_logistic"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -25,11 +25,11 @@ class PopulationODE(nn.Module):
     def __init__(self):
         super(PopulationODE, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(3, 64),
+            nn.Linear(2, 4),
             nn.Tanh(),
-            nn.Linear(64, 64),
+            nn.Linear(4, 4),
             nn.Tanh(),
-            nn.Linear(64, 3)
+            nn.Linear(4, 2)
         )
 
     def forward(self, t, y):
@@ -59,7 +59,7 @@ optimizer = torch.optim.Adam(neural_ode_func.parameters(), lr=0.005)
 # Define learning rate range
 eta_initial = 0.01
 eta_final = 0.0001
-total_epochs = 1500
+total_epochs = 100000
 
 # Compute adaptive gamma
 gamma = np.exp(np.log(eta_final / eta_initial) / total_epochs)
@@ -113,10 +113,8 @@ for epoch in range(total_epochs):
     avg_loss.backward()
     optimizer.step()
     scheduler.step()
-    print(f'Epoch {epoch}, Average Loss: {avg_loss:.6f}')
+    print(f'Epoch {epoch}, Average Loss: {avg_loss:.16f}')
 
-    if epoch % 200 == 0:
-        print(f'Epoch {epoch}, Average Loss: {avg_loss:.6f}')
 
 print("Training complete!")
 # Step 2: Prediction with Multiple Initializations
@@ -142,10 +140,10 @@ with torch.no_grad():
         learned_proportions.append(learned_proportion) 
 
 plt.figure(figsize=(18, 5))
-labels = ["Species 1", "Species 2", "Species 3"]
+labels = ["Species 1", "Species 2"]#, "Species 3"]
 
 for i in range(n_time_series):#loop through initial conditions
-    for j in range(3): #loop through species
+    for j in range(2): #loop through species
         plt.subplot(2, n_time_series, i+1) #one system in each plot
         # Plot solid line first and get color
         line, = plt.plot(T_train, data_glv4.proportions[i][:, j], label=f"Init {i+1}")

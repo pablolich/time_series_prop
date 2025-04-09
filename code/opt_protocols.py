@@ -67,7 +67,8 @@ def reveal_optimize_refine(fit, weights, n_rounds=100):
         if len(fit.par_ix_cost) > 0:
             fit.optimize(fit.par_ix_cost) 
         # Adjust ODE parameters through several rounds of NM and BFGS
-        fit = nelder_bfgs(fit, weight, n_rounds = 1)
+        #fit = nelder_bfgs(fit, weight, n_rounds = 1)
+        fit.optimize(fit.par_ix_model, weight = weight)
         #Adjust both parameter groups simultaneously
         print(f"Weight: {weight}, Goal: {fit.cost_value}")
 
@@ -76,16 +77,17 @@ def reveal_optimize_refine(fit, weights, n_rounds=100):
             if ss % 25 == 0:
                 print(f"Step: {ss}, Goal: {fit.cost_value}")
 
-        # Optimize combinations of parameters
-        fit = all_k(fit.par_ix_model, fit, k=2, weight=weight)
+        # Optimize combinations of parameters up to groups of k
+        #fit = all_k(fit.par_ix_model, fit, k=2, weight=weight)
         print(f"Weight: {weight}, Goal: {fit.cost_value}")
 
         # Optimize again
-        fit.optimize(fit.par_ix_model, weight=weight)
+        #fit.optimize(fit.par_ix_model, weight=weight)
         print(f"Weight: {weight}, Goal: {fit.cost_value}")
 
     # Final optimization on all parameters
-    fit.optimize(list(range(fit.n_pars))) #weight is 0 here
+    #fit.optimize(list(range(fit.n_pars))) #weight is 0 here
+    fit.optimize(fit.par_ix_model)
     print(f"Weight: 0, Goal: {fit.cost_value}")
 
     return fit

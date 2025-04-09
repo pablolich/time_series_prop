@@ -65,7 +65,7 @@ class Fit:
         if self.cost.n_cost > 0:
             self.pars[self.data.n_initial + self.model.n_model:self.data.n_initial + self.model.n_model + self.cost.n_cost] = np.repeat(1, self.cost.n_cost) #np.random.randn(self.cost.n_cost)
 
-    def get_predictions(self):
+    def get_predictions(self, my_method = "RK23"):
         """
         Updates predicted_abundances and predicted_proportions given parameters.
         """
@@ -86,7 +86,7 @@ class Fit:
                     t_span=(times[0], times[-1]),
                     y0=init_conds,
                     t_eval=times,
-                    method='RK45'
+                    method=my_method
                 )
                 #process result
                 abundances = process_integration_result(sol, times)
@@ -125,7 +125,7 @@ class Fit:
         #extract parameters used to evaluate cost function
         pars_cost = self.pars[-self.cost.n_cost:]
         #score current parameters
-        cost_value = self.cost.compute_cost(self.data.abundances, 
+        cost_value = self.cost.compute_cost(self.data.proportions, 
                 self.predicted_abundances, 
                 self.data.times,
                 pars_cost,
@@ -166,6 +166,7 @@ class Fit:
             self.pars[positions] = res.x
             self.get_predictions()
             self.cost_value = new_goal
+
     def plot(self):
         """
         Plot observed vs. predicted proportions and abundances over time.
@@ -184,7 +185,7 @@ class Fit:
                 axes[0].plot(times, self.predicted_proportions[i][:, j], color=color)
         axes[0].set_title("Proportion Trends")
         axes[0].legend(["Observed", "Predicted"], loc='upper right')
-        axes[0].set_yscale("log")
+        #axes[0].set_yscale("log")
         
         # Abundances plot
         for i in range(self.data.n_time_series):
@@ -195,7 +196,7 @@ class Fit:
                 axes[1].scatter(times, self.data.abundances[i][:, j], alpha=0.5, marker=marker, color=color)
                 axes[1].plot(times, self.predicted_abundances[i][:, j], color=color)
         axes[1].set_title("Abundance Trends")
-        axes[1].set_yscale("log")
+        #axes[1].set_yscale("log")
         
         plt.tight_layout()
         plt.show()

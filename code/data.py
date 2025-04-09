@@ -51,3 +51,5 @@ class Data:
         
         #set rest of parameters (number of species, time series, and initial conditions)
         self.n = self.abundances[0].shape[1]
+        self.n_time_series = len(file_names)
+        self.n_initial = self.n * self.n_time_series

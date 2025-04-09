@@ -47,6 +47,45 @@ class Glv:
             "A": pars[dim:].reshape(dim, dim)
             }
         return params
+        
+class Logistic:
+    def __init__(self, dim):
+        """
+        Logistic model class for n independent species.
+        :param dim: dimension of the model (number of species)
+        """
+        self.dim = dim
+,       self.n_model = 2 * dim  # r_i and a_i for each species
+        self.model_name = "logistic"
+        self.dynamics_type = "dxdt"
+
+    def dynamics(self, t, x, pars):
+        """
+        Compute dx/dt for the logistic model.
+        :param t: Time (not used explicitly)
+        :param x: State variables (species abundances)
+        :param pars: Dictionary containing model parameters ('r' and 'a')
+        :return: dx/dt as a NumPy array
+        """
+        x = np.maximum(x, THRESH)
+        dx = x * (pars["r"] - pars["a"] * x)
+        return dx
+
+    def parse_model_parameters(self, dim, pars):
+        """
+        Create a dictionary of parameter names and dimensional shapes.
+        :param dim: dimension of the model
+        :param pars: flat vector of model parameters
+                     First dim entries: r values
+                     Next dim entries: a values
+        :return: dictionary with "r" and "a" arrays
+        """
+        params = {
+            "r": pars[:dim],               # Growth rates
+            "a": pars[dim:2*dim]           # Self-limitation (competition) coefficients
+        }
+        return params
+
 
 class Exponential:
     def __init__(self, dim):

@@ -11,6 +11,8 @@ import numpy as np
 #sample from dirichlet distribution
 from scipy.stats import dirichlet
 
+THRESH = 1e-9
+
 class Ssq:
 
     def __init__(self, dim):
@@ -57,7 +59,7 @@ class LogDist:
     Logarithmic Distance.
     """
 
-    def __init__(self):
+    def __init__(self, dim):
 
         self.n_cost = 0
         self.cost_name = "logdist"

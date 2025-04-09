@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import sympy as sp
 from pysr import PySRRegressor
+import itertools
 #from your_module import export_models_to_single_file, extract_sympy_equations  # import the necessary functions
 # Get the absolute path of the parent directory (code/)
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -17,7 +18,11 @@ def extract_sympy_equations(eqs_all):
 def make_rhs_vectorized(exprs, variables):
     constants = set()
     for expr in exprs:
-        constants |= {term for term in expr.atoms(sp.Number) if term != 0 and term != 1}
+        # Collect numbers that are NOT integers
+	    constants |= {
+		term for term in expr.atoms(sp.Number)
+		if not isinstance(term, sp.Integer)
+	    }
     param_symbols = [sp.Symbol(f'c{i}') for i, _ in enumerate(constants)]
     const_to_param = dict(zip(constants, param_symbols))
     modified_exprs = [expr.subs(const_to_param) for expr in exprs]
@@ -30,7 +35,11 @@ def generate_model_class_code(class_index, exprs, variables, data_source):
     # Identify and replace constants with parameter symbols
     constants = set()
     for expr in exprs:
-        constants |= {term for term in expr.atoms(sp.Number) if term != 0 and term != 1}
+        # Collect numbers that are NOT integers
+        constants |= {
+            term for term in expr.atoms(sp.Number)
+            if not isinstance(term, sp.Integer)
+        }
     param_syms = [sp.Symbol(f'c{i}') for i, _ in enumerate(constants)]
     const_to_param = dict(zip(constants, param_syms))
     modified_exprs = [expr.subs(const_to_param) for expr in exprs]
@@ -43,15 +52,16 @@ def generate_model_class_code(class_index, exprs, variables, data_source):
             expr = expr.subs(var, sp.Symbol(f'x[{i}]'))
         # Replace parameters with params[i]
         for i, p in enumerate(param_syms):
-            expr = expr.subs(p, sp.Symbol(f'params[{i}]'))
+            expr = expr.subs(p, sp.Symbol(f'pars[{i}]'))
         expr_strs.append(str(expr))
 
-
-    dxdt_func_code = "def dxdt_func(t, x, *params):\n"
-    dxdt_func_code += "    from numpy import array\n"
-    dxdt_func_code += "    return array([\n"
-    dxdt_func_code += "\n".join([f"        {line}," for line in expr_strs])
-    dxdt_func_code += "\n    ])\n"
+    # Generate the dxdt_func code as a local function inside dynamics
+    dxdt_func_lines = []
+    dxdt_func_lines.append("        def dxdt_func(t, x, *pars):")
+    dxdt_func_lines.append("            return np.array([")
+    dxdt_func_lines.extend([f"              {line}," for line in expr_strs])
+    dxdt_func_lines.append("            ])")
+    dxdt_func_code = "\n".join(dxdt_func_lines)
 
     # Class definition
     class_name = f"Model_{class_index}"
@@ -59,8 +69,6 @@ def generate_model_class_code(class_index, exprs, variables, data_source):
     param_syms_str = ", ".join(str(p) for p in param_syms)
 
     class_code = f"""
-{dxdt_func_code}
-
 class {class_name}:
     def __init__(self, dim):
         \"\"\"
@@ -85,32 +93,55 @@ class {class_name}:
         :param pars: List of parameters in order: [{param_syms_str}]
         :return: dx/dt as NumPy array
         \"\"\"
+        pars = pars['pars']
+{dxdt_func_code}
+        
         x = np.maximum(x, 1e-10)
         return dxdt_func(t, x, *pars)
 
-    def get_param_symbols(self):
-        return {param_syms}
-
-    def parse_model_parameters(self, pars):
-        return pars
+    def parse_model_parameters(self, dim, pars):
+        \"\"\"
+        Package model parameters into a dictionary.
+        
+        :param dim: Number of species
+        :param pars: List of parameter values
+        :return: Dictionary of parameters
+        \"\"\"
+        params = {{
+            "pars": pars,
+        }}
+        return params
 """
     return class_code.strip()
-
-def export_models_to_single_file(eqs_all, data_source="default", output_file="generated_models.py"):
+def export_models_to_single_file(eqs_all, n_equations, data_source="default", output_file="generated_models.py"):
     # Create or overwrite the output file
     with open(output_file, "w") as f:
         f.write('''import numpy as np
 THRESH = 1e-10  # default threshold to avoid zeros\n\n''')
-        
+
+        # Extract equations
         eqs_grouped = extract_sympy_equations(eqs_all)
+        eqs_grouped = [eqs[:n_equations] for eqs in eqs_grouped]
+        
+        # Create variable names (one for each species)
         variables = [sp.Symbol(f"x{i}") for i in range(len(eqs_grouped))]
 
-        for i, exprs in enumerate(zip(*eqs_grouped)):  # each exprs is one full model (1 per species)
-            exprs = list(exprs)
+        # Generate all combinations of one equation per species
+        all_combinations = list(itertools.product(*eqs_grouped))
+
+        for i, exprs in enumerate(all_combinations):
+            # Simplify and expand each expression
+            exprs = [sp.expand(sp.simplify(expr)) for expr in exprs]
+
+            # Generate code for the model
             code = generate_model_class_code(i, exprs, variables, data_source)
+
+            # Optional: Remove debugging unless needed
+            # import ipdb; ipdb.set_trace(context=20)
+
             f.write(code + "\n\n")  # Add a newline after each class
 
-    print(f"✅ All models written to: {output_file}")
+    print(f"✅ All {len(all_combinations)} models written to: {output_file}")
 
 
 # Path to the dataset folder
@@ -157,10 +188,9 @@ eqs_all = model.equations_
 
 # Extract and group the equations by species
 eqs_grouped = extract_sympy_equations(eqs_all)
-import ipdb; ipdb.set_trace(context = 20)
 
 # Now generate and export all models to a single Python file
-export_models_to_single_file(eqs_all, data_source="synthetic_simplest", output_file="generated_models.py")
+export_models_to_single_file(eqs_all, 4, data_source="synthetic_simplest", output_file="generated_models.py")
 
 print("✅ Models written to 'generated_models.py'")
 
