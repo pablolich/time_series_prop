@@ -13,27 +13,30 @@ sys.path.append(parent_dir)
 
 import data
 
-path_name = "../../data/synthetic_logistic"
+path_name = "../../data/jo_small"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
 data_glv4 = data.Data(file_list)
 n_time_series = len(data_glv4.abundances)
 
-# Neural ODE function
 class PopulationODE(nn.Module):
     def __init__(self):
         super(PopulationODE, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(2, 4),
+            nn.Linear(3, 4),
             nn.Tanh(),
             nn.Linear(4, 4),
             nn.Tanh(),
-            nn.Linear(4, 2)
+            nn.Linear(4, 3)
         )
 
-    def forward(self, t, y):
-        return self.net(y)
+    def forward(self, y):
+        return self.net(y)  # No time dependence
+        
+# Wrap for torchdiffeq.odeint, which expects (t, y)
+def autonomous_wrapper(t, y):
+    return neural_ode_func(y)
 
 def time_weighting(epoch, total_epochs, seq_length):
     """
@@ -59,7 +62,7 @@ optimizer = torch.optim.Adam(neural_ode_func.parameters(), lr=0.005)
 # Define learning rate range
 eta_initial = 0.01
 eta_final = 0.0001
-total_epochs = 100000
+total_epochs = 50000
 
 # Compute adaptive gamma
 gamma = np.exp(np.log(eta_final / eta_initial) / total_epochs)
@@ -87,9 +90,9 @@ for epoch in range(total_epochs):
         
         # Apply the mask (only compare predicted values for revealed parts)
         init_conds = torch.log(X_train[0])
-        int_sol = odeint(neural_ode_func, 
-                torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
-                T_train)
+        int_sol = odeint(autonomous_wrapper,
+                 torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
+                 T_train)
         #zero out species that are not present in the solution
         ind_absent = torch.where(int_sol[0,:] == 0)
         int_sol = torch.exp(int_sol)
@@ -127,9 +130,9 @@ with torch.no_grad():
         T_train = torch.tensor(data_glv4.times[i], dtype=torch.float32)
         # Apply the mask (only compare predicted values for revealed parts)
         init_conds = torch.log(X_train[0])
-        learned_abundance = odeint(neural_ode_func, 
-                torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
-                T_train)
+        learned_abundance = odeint(autonomous_wrapper,
+                           torch.nan_to_num(init_conds, nan=0.0, neginf=0.0),
+                           T_train)
         #zero out species that are not present in the solution
         ind_absent = torch.where(learned_abundance[0,:] == 0)
         learned_abundance = torch.exp(learned_abundance)

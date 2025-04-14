@@ -145,7 +145,7 @@ THRESH = 1e-10  # default threshold to avoid zeros\n\n''')
 
 
 # Path to the dataset folder
-path_name = "../../data/synthetic_simplest"
+path_name = "../../data/jo_small"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -188,9 +188,10 @@ eqs_all = model.equations_
 
 # Extract and group the equations by species
 eqs_grouped = extract_sympy_equations(eqs_all)
+n_equations = len(eqs_all[0])
 
 # Now generate and export all models to a single Python file
-export_models_to_single_file(eqs_all, 4, data_source="synthetic_simplest", output_file="generated_models.py")
+export_models_to_single_file(eqs_all, n_equations, data_source="synthetic_simplest", output_file="generated_models.py")
 
 print("✅ Models written to 'generated_models.py'")
 

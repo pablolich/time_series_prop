@@ -7,6 +7,7 @@ logistic_model <- function(t, state, parameters) {
     dx1 <- x1 * (r1 - a1 * x1)
     dx2 <- x2 * (r2 - a2 * x2)
     list(c(dx1, dx2))
+    print(list(c(dx1, dx2)))
   })
 }
 

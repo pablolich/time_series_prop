@@ -16,7 +16,7 @@ from aux_optimization import *
 from opt_protocols import *
 
 # Get file names
-path_name = "../data/synthetic_logistic"
+path_name = "../data/jo_small"
 file_list = os.listdir(path_name)
 file_list = [os.path.join(path_name, file_name) for file_name in file_list]
 
@@ -51,7 +51,7 @@ for i, model_class in enumerate(models):
 
     # Plot and save the results for the current model
     print("Final parameters: ", fit_object.pars)
-    #fit_object.plot()
+    fit_object.plot()
     fit_object.save_results()
     
 print("All models have been fitted and saved.")

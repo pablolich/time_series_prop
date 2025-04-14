@@ -169,37 +169,50 @@ class Fit:
 
     def plot(self):
         """
-        Plot observed vs. predicted proportions and abundances over time.
+        Plot observed vs. predicted proportions and abundances over time,
+        include model name in titles, and save the plot to file.
         """
+        import os
+        from matplotlib.lines import Line2D
+
         fig, axes = plt.subplots(1, 2, figsize=(15, 6), sharex=True)
-        markers = ['o', 's', 'D', '^', 'v', 'p', '*', 'h', 'X', '+']  # Different markers for different time series
-        colors = plt.cm.get_cmap("tab10", self.data.proportions[0].shape[1])  # Assign consistent colors per species
-        
+        markers = ['o', 's', 'D', '^', 'v', 'p', '*', 'h', 'X', '+']  # Different markers for time series
+        colors = plt.cm.get_cmap("tab10", self.data.proportions[0].shape[1])  # One color per species
+
+        model_name = getattr(self.model, "model_name", "UnnamedModel")
+
         # Proportions plot
         for i in range(self.data.n_time_series):
             times = self.data.times[i]
             for j in range(self.data.proportions[i].shape[1]):
                 marker = markers[i % len(markers)]
-                color = colors(j)  # Assign the same color per species
+                color = colors(j)
                 axes[0].scatter(times, self.data.proportions[i][:, j], alpha=0.5, marker=marker, color=color)
                 axes[0].plot(times, self.predicted_proportions[i][:, j], color=color)
-        axes[0].set_title("Proportion Trends")
-        axes[0].legend(["Observed", "Predicted"], loc='upper right')
-        #axes[0].set_yscale("log")
-        
+        axes[0].set_title(f"{model_name} — Proportion Trends")
+        axes[0].set_xlabel("Time")
+        axes[0].set_ylabel("Proportion")
+
         # Abundances plot
         for i in range(self.data.n_time_series):
             times = self.data.times[i]
             for j in range(self.data.abundances[i].shape[1]):
                 marker = markers[i % len(markers)]
-                color = colors(j)  # Assign the same color per species
+                color = colors(j)
                 axes[1].scatter(times, self.data.abundances[i][:, j], alpha=0.5, marker=marker, color=color)
                 axes[1].plot(times, self.predicted_abundances[i][:, j], color=color)
-        axes[1].set_title("Abundance Trends")
-        #axes[1].set_yscale("log")
-        
+        axes[1].set_title(f"{model_name} — Abundance Trends")
+        axes[1].set_xlabel("Time")
+        axes[1].set_ylabel("Abundance")
+
         plt.tight_layout()
-        plt.show()
+
+        # Save plot
+        os.makedirs("../results", exist_ok=True)
+        fname = os.path.splitext(os.path.basename(self.data.file_names[0]))[0]
+        plot_filename = f"{fname}_{model_name}_{self.cost.cost_name}_plot.png"
+        plt.savefig(os.path.join("../results/plots", plot_filename))
+        print(f"Plot saved to ../results/plots/{plot_filename}")
 
     def save_results(self):
             

@@ -1,3 +1,5 @@
+
+
 # TODOS
 --------------------------------------------------------------------
 1. Prepare functionality to make it easy to do meta fitting with a bunch of models and datasets.
@@ -22,6 +24,10 @@ PROBLEMS WITH DATA
 10. Is how I am dealing with divergences (seting in proportions 1/n each) a good way to deal with that?
 
 --------------------------------------------------------------------
+
+#### Apr 08,2025
+
+I have to clean up symbolic regression to fully integrate it with current pipeline
 #### Mar 17,2025
 
 I have finished the basic pipeline, and orgainzed things in folders
