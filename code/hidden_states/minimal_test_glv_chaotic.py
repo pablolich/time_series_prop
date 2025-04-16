@@ -9,9 +9,12 @@ import matplotlib.pyplot as plt
 # ----------------------
 # Step 1: Load data from CSV
 # ----------------------
-data = pd.read_csv("AO-LB_Rep4.csv")
+data = pd.read_csv("hudson-bay-lynx-hare.csv")
+#data = data.iloc[0:50,:]
+nspp = np.shape(data)[1]-1
+ntpoints = np.shape(data)[0]
 time = data.iloc[:, 0].to_numpy()
-species = data.iloc[:, 1:5].to_numpy()  # Use all 4 species
+species = data.iloc[:, 1:(nspp+1)].to_numpy()  # Use all 4 species
 
 # Compute proportions of all species
 species_sum = np.sum(species, axis=1, keepdims=True)
@@ -49,16 +52,20 @@ def symbolic_model(p, N, W):
     # p: (T, 4), N: (T,), W: (10, 4)
     N_col = N[:, None]  # (T, 1)
     features = jnp.concatenate([
-        jnp.ones_like(N_col),      # (T, 1)
-        p,                         # (T, 4)
-        N_col,                     # (T, 1)
-        p**2,                      # (T, 4)
+        #jnp.ones_like(N_col),      # (T, 1)
+        #p,                         # (T, 4)
+        #N_col,                     # (T, 1)
+        #p**2,                      # (T, 4)
         p * N_col,                 # (T, 4)
-        N_col**2,                  # (T, 1)
-        p**3,                      # (T, 4)
-        (p**2) * N_col,            # (T, 4)
+        #N_col**2,                  # (T, 1)
+        #p**3,                      # (T, 4)
+        #(p**2) * N_col,            # (T, 4)
         p * (N_col**2),            # (T, 4)
-        N_col**3                   # (T, 1)
+        #N_col**3                   # (T, 1)
+        (p**2)*(N_col)**2
+        #p*(N_col**3), 
+        #(p**2)*(N_col**3),
+        #(p**3)*(N_col**3)
     ], axis=1)                    # final shape (T, 26)
     return jnp.einsum('ij,jk->ik', features, W)  # (T, 4)  # (T, 4)
 
@@ -91,7 +98,7 @@ p_obs = jnp.array(p_obs)         # (T, 4)
 dp_obs = jnp.array(dp_obs)       # (T, 4)
 
 params = encoder.init(jax.random.PRNGKey(42), p_windows)
-W = jnp.zeros((22, 3))  # one equation per species
+W = jnp.zeros((6, nspp))  # one equation per species
 opt_state = optimizer.init((params, W))
 
 for step in range(5000):
@@ -117,7 +124,7 @@ fig, axes = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
 
 # Panel 1: Reconstructed populations
-for i in range(3):
+for i in range(nspp):
     axes[0].plot(time[pad:-pad], X_scaled[:, i], label=f"True spp {i+1}", color=colors[i])
     axes[0].plot(time[pad:-pad], X_rec_scaled[:, i], '--', label=f"Recon spp {i+1}", color=colors[i])
 axes[0].legend()
@@ -125,7 +132,7 @@ axes[0].set_title("Hidden State Reconstruction for All Species")
 axes[0].set_ylabel("Population")
 
 # Panel 2: Proportions
-for i in range(3):
+for i in range(nspp):
     axes[1].plot(time[pad:-pad], p_obs[:, i], label=f"Observed prop {i+1}", color=colors[i])
     axes[1].plot(time[pad:-pad], X_rec_scaled[:, i] / jnp.sum(X_rec_scaled, axis=1), '--', label=f"Recon prop {i+1}", color=colors[i])
 axes[1].legend()
@@ -138,19 +145,19 @@ plt.show()
 
 # Correlation between true and reconstructed populations per species
 print("coefficients:")
-for i in range(3):
+for i in range(nspp):
     corr = np.corrcoef(X_scaled[:, i], X_rec_scaled[:, i])[0, 1]
     print(f"Species {i+1}: r = {corr:.4f}")
 
 # Print discovered symbolic weights
 print("\nDiscovered symbolic weights (columns = species):")
-print(jnp.round(W, 3))
+print(jnp.round(W, nspp))
 
 
 print("Discovered symbolic weights (columns = species):")
-print(jnp.round(W, 3))
+print(jnp.round(W, nspp))
 # One-to-one plots: reconstruction vs true
-fig, axs = plt.subplots(2, 2, figsize=(10, 10), squeeze=False)
+fig, axs = plt.subplots(1, 2, figsize=(10, 10), squeeze=False)
 for i, ax in enumerate(axs.flat):
     ax.scatter(X_scaled[:, i], X_rec_scaled[:, i], s=5, color=colors[i], alpha=0.6)
     ax.plot([X_scaled[:, i].min(), X_scaled[:, i].max()], [X_scaled[:, i].min(), X_scaled[:, i].max()], 'k--', lw=1)
