@@ -8,8 +8,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 #load data
-data = pd.read_csv("glv_chaos_4spp.csv")
-#data = data.iloc[0:50,:]
+data = pd.read_csv("C1.csv")
+data = data.iloc[0:50,:]
 nspp = np.shape(data)[1]-1
 ntpoints = np.shape(data)[0]
 time = data.iloc[:, 0].to_numpy()
@@ -34,9 +34,9 @@ p_windows = np.stack([proportions[i - pad:i + pad + 1] for i in range(pad, len(p
 #define encoder
 def encoder_fn(x):
     N = hk.Sequential([
-        hk.Conv1D(128, kernel_shape=9, padding="VALID"),
+        hk.Conv1D(16, kernel_shape=9, padding="VALID"),
         jax.nn.softplus,
-        hk.Conv1D(128, kernel_shape=1),
+        hk.Conv1D(16, kernel_shape=1),
         jax.nn.softplus,
         hk.Conv1D(1, kernel_shape=1),
         jax.nn.softplus
@@ -167,14 +167,14 @@ for step in range(5000):
 N_pred = encoder.apply(params, p_windows).squeeze(-1).squeeze(-1)
 X_rec = p_obs * N_pred[:, None]  # (T, 4)
 X_true = species[pad:-pad]
-
 # Scale both to match total at t=0
 true_init_sum = jnp.sum(X_true[0])
-#pred_init_sum = jnp.sum(X_rec[0])
-#scale = true_init_sum / pred_init_sum
+pred_init_sum = jnp.sum(X_rec[0])
+scale = true_init_sum / pred_init_sum
 
-X_scaled = X_true/true_init_sum
-X_rec_scaled = X_rec# * scale
+
+X_scaled = X_true
+X_rec_scaled = X_rec * scale
 fig, axes = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
 
