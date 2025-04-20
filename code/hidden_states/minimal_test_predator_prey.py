@@ -49,10 +49,22 @@ encoder = hk.without_apply_rng(hk.transform(encoder_fn))
 # ----------------------
 # Step 3: Symbolic Model
 # ----------------------
-def symbolic_model(p, N, w):
-    features = jnp.column_stack([
-        jnp.ones_like(p), p, N, p**2, p*N, N**2,
-        p**3, p**2*N, p*N**2, N**3
+def symbolic_model(p, N_col, w):
+    N_col = N[:, None]  # (T, 1)
+    features = jnp.column_stack([#jnp.ones_like(N_col),      # (T, 1)
+        #p,                         # (T, 4)
+        #N_col,                     # (T, 1)
+        #p**2,                      # (T, 4)
+        p * N_col,                 # (T, 4)
+        #N_col**2,                  # (T, 1)
+        #p**3,                      # (T, 4)
+        #(p**2) * N_col,            # (T, 4)
+        p * (N_col**2),            # (T, 4)
+        #N_col**3                   # (T, 1)
+        (p**2)*(N_col)**2
+        #p*(N_col**3), 
+        #(p**2)*(N_col**3),
+        #(p**3)*(N_col**3)
     ])
     return features @ w
 

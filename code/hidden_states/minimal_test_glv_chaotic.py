@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 # ----------------------
 # Step 1: Load data from CSV
 # ----------------------
-data = pd.read_csv("hudson-bay-lynx-hare.csv")
-#data = data.iloc[0:50,:]
+data = pd.read_csv("C1.csv")
+data = data.iloc[0:50,:]
 nspp = np.shape(data)[1]-1
 ntpoints = np.shape(data)[0]
 time = data.iloc[:, 0].to_numpy()
@@ -37,9 +37,9 @@ p_windows = np.stack([proportions[i - pad:i + pad + 1] for i in range(pad, len(p
 def encoder_fn(x):
     return hk.Sequential([
         hk.Conv1D(32, kernel_shape=9, padding="VALID"),
-        jax.nn.relu,
+        jax.nn.softplus,
         hk.Conv1D(32, kernel_shape=1),
-        jax.nn.relu,
+        jax.nn.softplus,
         hk.Conv1D(1, kernel_shape=1),
     ])(x)
 
@@ -60,9 +60,9 @@ def symbolic_model(p, N, W):
         #N_col**2,                  # (T, 1)
         #p**3,                      # (T, 4)
         #(p**2) * N_col,            # (T, 4)
-        p * (N_col**2),            # (T, 4)
+        p * (N_col**2)#,            # (T, 4)
         #N_col**3                   # (T, 1)
-        (p**2)*(N_col)**2
+        #(p**2)*(N_col)**2
         #p*(N_col**3), 
         #(p**2)*(N_col**3),
         #(p**3)*(N_col**3)
@@ -77,7 +77,7 @@ def loss_fn(params, W, x, p_mid, dp_true):
     dp_pred = symbolic_model(p_mid, N_pred, W)  # (T, 4)
     mse = jnp.mean((dp_pred - dp_true)**2)
     sparsity = jnp.sum(jnp.abs(W))
-    return mse + 1e-8 * sparsity
+    return mse + 1e-3 * sparsity
 
 optimizer = optax.adam(1e-3)
 
@@ -98,7 +98,7 @@ p_obs = jnp.array(p_obs)         # (T, 4)
 dp_obs = jnp.array(dp_obs)       # (T, 4)
 
 params = encoder.init(jax.random.PRNGKey(42), p_windows)
-W = jnp.zeros((6, nspp))  # one equation per species
+W = jnp.zeros((4, nspp))  # one equation per species
 opt_state = optimizer.init((params, W))
 
 for step in range(5000):
