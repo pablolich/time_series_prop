@@ -1,4 +1,15 @@
 
+#### Apr 20,2025
+
+I have implemented jax-like structure for traditional pipeline. Able to fit lotka volterra perfectly, and can also recover parameters with some noise. 
+Next steps: 
+1. Fit datasets that are more difficult --Chaos
+2. smooth datasets with a neural ode smoother or something this will allow a better fit with model
+3. Code a pipeline to fit any polynomial model. If wanted, can add sparisity
+4. Possibly go to sindy in jax
+5. Try real data
+
+
 
 # TODOS
 --------------------------------------------------------------------
