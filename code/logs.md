@@ -8,6 +8,7 @@ Next steps:
 3. Code a pipeline to fit any polynomial model. If wanted, can add sparisity
 4. Possibly go to sindy in jax
 5. Try real data
+6. Add logratio as cost function 
 
 
 
