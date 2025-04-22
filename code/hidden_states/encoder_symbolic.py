@@ -8,8 +8,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 #load data
-data = pd.read_csv("C1.csv")
-data = data.iloc[0:50,:]
+data = pd.read_csv("predator_prey.csv")
+#data = data.iloc[0:50,:]
 nspp = np.shape(data)[1]-1
 ntpoints = np.shape(data)[0]
 time = data.iloc[:, 0].to_numpy()
@@ -96,6 +96,17 @@ def p_dot(p, x, W, exponents):
     F = symbolic_model(x, W, exponents)           
     avg_F = jnp.sum(p * F, axis=1, keepdims=True) 
     return p*(F - avg_F)
+
+def T_dot(p, x, T, W, exponents):
+    """
+    p: (T, D) — proportions time series
+    x: (T, D) — abundances time series
+    W: (5, D) — weights for symbolic model
+    Returns dp/dt
+    """
+    F = symbolic_model(x, W, exponents)           
+    avg_F = jnp.sum(p * F, axis=1, keepdims=True) 
+    return T*avg_F
     
 def loss_fn(params, W, p_obs, p_windows, dp_true, exponents):
     """
@@ -112,14 +123,21 @@ def loss_fn(params, W, p_obs, p_windows, dp_true, exponents):
     """
     #predict N from encoder
     N_pred = encoder.apply(params, p_windows).squeeze(-1).squeeze(-1)
+    # Prepare derivatives (assuming all time steps are same)
+    dt = time[1] - time[0]
+    dN_pred = jnp.gradient(N_pred)/dt  # (T,)
     #get absolute abundances given proposed totals
     x = p_obs * N_pred[:, None]
     #compute dp_pred using replicator_rhs (instead of symbolic_model)
     dp_pred = p_dot(p_obs, x, W, exponents)
-    #MSE between predicted and true proportions (first) derivatives
-    mse = jnp.mean((dp_pred - dp_true)**2)
-    return mse
-    
+    dN_pred = T_dot(p_obs, x, N_pred, W, exponents)
+    # MSE losses
+    loss_dp = jnp.mean((dp_pred - dp_true) ** 2)
+    loss_dN = jnp.mean((dN_pred - dN_pred) ** 2)
+
+    total_loss = loss_dp + loss_dN  # weighted sum possible later
+
+    return total_loss
 # Adam optimizer with learning rate 1e-3
 optimizer = optax.adam(1e-3)
 
@@ -139,7 +157,6 @@ def update(params, W, opt_state, p_obs,  p_windows, dp_true, exponents):
     # Compute both loss and gradients
     grads_fn = jax.value_and_grad(loss_fn, argnums=(0, 1))  # Compute gradients wrt params and W
     loss, grads = grads_fn(params, W, p_obs, p_windows, dp_true, exponents)  # Loss and gradients
-    
     # Apply gradients to update parameters and weights
     updates, opt_state = optimizer.update(grads, opt_state)  # Get updates from optimizer
     params = optax.apply_updates(params, updates[0])  # Update encoder params
