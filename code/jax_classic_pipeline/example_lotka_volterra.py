@@ -168,6 +168,7 @@ def train_step(flat_params, opt_state, t_eval, target_props, time_weights):
     updates, opt_state = optimizer.update(grads, opt_state, flat_params)
     flat_params = optax.apply_updates(flat_params, updates)
     return flat_params, opt_state, loss
+
 # ----------------------------------------
 # Training loop
 # ----------------------------------------
@@ -303,77 +304,64 @@ A_chaos = -1*jnp.array([
 x0_chaos = jnp.array([0.4874672, 0.1488466, 0.2485307, 0.1151555])
 model_params = flatten_params(r_chaos, A_chaos)
 true_params = jnp.concatenate([x0_chaos, model_params])
-t_eval = jnp.linspace(0, 25, 250)
+t_eval = jnp.linspace(0, 25, 200)
 x_true, _ = integrate_with_event(model_params, x0_chaos, t_eval)
 
-#import numpy as np
-#from scipy.integrate import solve_ivp
-#import matplotlib.pyplot as plt
-#r_chaos = np.array([1.5, 1.2, 1.8, 1.4])
-#A_chaos = -1*np.array([
-#    [1.0, 1.6, 1.9, 0.5],
-#    [0.3, 1.0, 0.8, 1.7],
-#    [2.5, 0.2, 1.0, 0.7],
-#    [1.4, 0.9, 0.6, 1.0]
-#]) * r_chaos[:, None]
-#
-#x0_chaos = np.array([0.5, 0.2, 0.3, 0.1])
-#t_eval = np.linspace(0, 25, 1000)
-#
-#def vf(t, y, r_chaos, A_chaos):
-#    return y * (r_chaos + A_chaos @ y)
-#
-#sol = solve_ivp(vf, [t_eval[0], t_eval[-1]], x0_chaos, dense_output=True, 
-#        args = (r_chaos, A_chaos),
-#        method="RK45")
-#
-#y = sol.sol(t_eval)
-#
-## Plot
-#plt.figure(figsize=(10, 6))
-#for i in range(4):
-#    plt.plot(t_eval, y[i], label=f'Species {i+1}')
-#plt.title("Chaotic Trajectories of 4-Species System")
-#plt.xlabel("Time")
-#plt.ylabel("Population")
-#plt.legend()
-#plt.grid(True)
-#plt.tight_layout()
-#plt.show()
-#
-#import ipdb; ipdb.set_trace(context = 20)
-#key = jax.random.PRNGKey(42)
-#shape_param = 10.0  # Higher means less variance (more concentrated around the mean)
+key = jax.random.PRNGKey(42)
+shape_param = 50.0  # Higher means less variance (more concentrated around the mean)
 
-## Compute scale such that shape * scale = x_true
-#scale = x_true / shape_param
+# Compute scale such that shape * scale = x_true
+scale = x_true / shape_param
 
-## Sample from Gamma
-#key1, key2 = jax.random.split(key)
-#gamma_noise = jax.random.gamma(key1, shape_param, shape=x_true.shape) * scale
+# Sample from Gamma
+key1, key2 = jax.random.split(key)
+gamma_noise = jax.random.gamma(key1, shape_param, shape=x_true.shape) * scale
 
-## Rescale so that the total population at t=0 sums to 1
-#initial_total = jnp.sum(gamma_noise[0])
-#scaling_factor = 1.0 / initial_total
-#x_true_noise = gamma_noise * scaling_factor
+# Rescale so that the total population at t=0 sums to 1
+initial_total = jnp.sum(gamma_noise[0])
+scaling_factor = 1.0 / initial_total
+x_true_noise = gamma_noise * scaling_factor
 
-#target_props = to_proportions(x_true_noise)
+target_props = to_proportions(x_true_noise)
 
 #rescale
-x_true = x_true/jnp.sum(x_true[0])
-x_true_noise = x_true
-target_props = to_proportions(x_true)
+#x_true = x_true/jnp.sum(x_true[0])
+#x_true_noise = x_true
+#target_props = to_proportions(x_true)
 
 # Train
-def train_with_refinement(t_eval, target_props, init_trials=800000, first_steps=800000, refine_steps=500000):
+def train_with_refinement(t_eval, target_props, init_trials=50000, first_steps=50000, refine_steps=50000):
     key = jax.random.PRNGKey(0)
     x0_guess = target_props[0]
     full_init = try_initializations(init_trials, x0_guess, t_eval, target_props, key)
-    #full_init = jnp.concatenate([x0_guess, flat_model_params])
-    
+
     trained = fit_model(t_eval, target_props, full_init, steps=first_steps)
-    refined = fit_model(t_eval, target_props, trained, steps=refine_steps, use_weights=False)
-    return refined
+    unweighted = fit_model(t_eval, target_props, trained, steps=refine_steps, use_weights=False)
+
+    #import numpy as np
+    #from scipy.optimize import minimize
+    #from jax import value_and_grad
+
+    ## Wrap loss + gradient
+    #loss_and_grad_fn = value_and_grad(lambda p: loss_fn(p, t_eval, target_props, jnp.ones_like(t_eval)))
+
+    #def scipy_loss(p_numpy):
+    #    # Convert numpy -> jax
+    #    p_jax = jnp.array(p_numpy)
+    #    loss_val, _ = loss_and_grad_fn(p_jax)
+    #    return float(loss_val)#, np.array(grad_val)
+
+    ## Use scipy minimize
+    #result = minimize(
+    #    fun=scipy_loss,
+    #    x0=np.array(unweighted),  # from ADAM result
+    #    method="L-BFGS-B",
+    #    options=dict(maxiter=500, disp=True)
+    #)
+
+    #fitted_params_bfgs = jnp.array(result.x)
+
+    return unweighted
 
 
 fitted_params = train_with_refinement(t_eval, target_props)

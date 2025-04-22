@@ -1,4 +1,16 @@
 
+#### Apr 21,2025
+
+Tasks for tomorrow
+
+2. Think of smoothing as a way of denoising, ask Peter Lu
+3. Model error function with dirichlet distribution. Start with log ration, then do dirichlet
+3. Log ratio as cost function try on perfect chaotic
+4. Perform parameter refinement by fitting groups of parameters at a time (i.e. initial conditions only, model paramters only, model parameter groups only, etc). 
+5. Code general polynomial models 
+6. Try on real data
+7. Back to encoder hidden state recovery: add a dynamic constrain such that the derivatives from the totals as obtained through the encoder must match the equation for the totals, that is, treat the output of the encoder as an "observation" that must follow also the symbolic model.
+
 #### Apr 20,2025
 
 I have implemented jax-like structure for traditional pipeline. Able to fit lotka volterra perfectly, and can also recover parameters with some noise. 
