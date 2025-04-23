@@ -148,15 +148,40 @@ def loss_fn(flat_params, t_eval, target_props, time_weights):
     model_params = flat_params[num_species:]
     x, penalty = integrate_with_event(model_params, x0, t_eval)
     pred_props = to_proportions(x)
+    #logratio
+    #ratio = jnp.log(pred_props + 1e-9) - jnp.log(target_props + 1e-9)
+    #mlr = jnp.mean(jnp.abs(ratio), axis=1)  #Sum the absolute values row-wise
     mse = jnp.mean((pred_props - target_props) ** 2, axis=1)
     weighted = jnp.sum((mse + penalty) * time_weights)
     return weighted
+    
+from jax.scipy.stats import dirichlet as jax_dirichlet
+
+def dirichlet_loglikelihood_loss(flat_params, t_eval, target_props):
+    """
+    flat_params: flattened array of initial populations + model parameters
+    t_eval: timepoints
+    target_props: observed population proportions at each timepoint
+    """
+    num_species = target_props.shape[1]
+    x0 = flat_params[:num_species]
+    model_params = flat_params[num_species:]
+
+    x_pred, penalty = integrate_with_event(model_params, x0, t_eval)  # absolute abundances
+    alpha = x_pred/scale #jnp.clip(x_pred, a_min=1e-3)  # Dirichlet requires positive concentrations
+
+    # Dirichlet log-likelihood at each timepoint
+    log_probs = jax.vmap(jax_dirichlet.logpdf)(target_props, alpha)
+    neg_log_likelihood = -jnp.sum(log_probs) #no penalty nor weighting because we use it at the end
+
+    return neg_log_likelihood
 
 # ----------------------------------------
 # Define optimizer globally
 # ----------------------------------------
 
-optimizer = optax.adam(1e-3)
+optimizer_sse = optax.adam(1e-3)
+optimizer_dir = optax.adam(5e-5)
 
 
 @jax.jit
@@ -165,7 +190,14 @@ def train_step(flat_params, opt_state, t_eval, target_props, time_weights):
         return loss_fn(p, t_eval, target_props, time_weights)
 
     loss, grads = value_and_grad(weighted_loss)(flat_params)
-    updates, opt_state = optimizer.update(grads, opt_state, flat_params)
+    updates, opt_state = optimizer_sse.update(grads, opt_state, flat_params)
+    flat_params = optax.apply_updates(flat_params, updates)
+    return flat_params, opt_state, loss
+
+@jax.jit
+def train_step_dirichlet(flat_params, opt_state, t_eval, target_props):
+    loss, grads = value_and_grad(lambda p: dirichlet_loglikelihood_loss(p, t_eval, target_props))(flat_params)
+    updates, opt_state = optimizer_dir.update(grads, opt_state, flat_params)
     flat_params = optax.apply_updates(flat_params, updates)
     return flat_params, opt_state, loss
 
@@ -196,7 +228,7 @@ def try_initializations(num_trials, x0_guess, t_eval, target_props, key):
 
 
 def fit_model(t_eval, target_props, flat_init_params, steps=100, use_weights=True):
-    opt_state = optimizer.init(flat_init_params)
+    opt_state = optimizer_sse.init(flat_init_params)
     flat_params = flat_init_params
 
     if use_weights:
@@ -213,6 +245,15 @@ def fit_model(t_eval, target_props, flat_init_params, steps=100, use_weights=Tru
 
     return flat_params
 
+def fit_dirichlet(t_eval, target_props, flat_init_params, steps=100):
+    opt_state = optimizer_dir.init(flat_init_params)
+    flat_params = flat_init_params
+
+    for step in range(steps):
+        flat_params, opt_state, loss = train_step_dirichlet(flat_params, opt_state, t_eval, target_props)
+        print(f"[Dirichlet] Step {step}, Loss: {loss:.4f}")
+    
+    return flat_params
 
 # ----------------------------------------
 # Plotting function (2-panel)
@@ -221,7 +262,12 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 
-def plot_fit(t_eval, x_noisy, fitted_params, true_params=None, x_skeleton=None):
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import numpy as np
+import jax.numpy as jnp
+
+def plot_fit(t_eval, x_noisy, fitted_params, scale, true_params=None, x_skeleton=None):
     target_proportions = to_proportions(x_noisy)
     num_species = target_proportions.shape[1]
     x0 = fitted_params[:num_species]
@@ -230,37 +276,36 @@ def plot_fit(t_eval, x_noisy, fitted_params, true_params=None, x_skeleton=None):
     pred_props = to_proportions(x_fitted)
 
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
-
-    # Define a colormap to assign distinct colors
     color_map = cm.get_cmap("tab10", num_species)
     species_colors = [color_map(i) for i in range(num_species)]
 
     # Absolute Populations
     for i in range(num_species):
-        axs[0].plot(t_eval, x_noisy[:, i], 'o', label=f"Noisy Species {i+1}", color=species_colors[i], alpha=0.4)
-        axs[0].plot(t_eval, x_fitted[:, i], '-', label=f"Fitted Species {i+1}", color=species_colors[i])
+        axs[0].plot(t_eval, x_noisy[:, i], 'o', color=species_colors[i], alpha=0.5)
+        axs[0].plot(t_eval, x_fitted[:, i], '-', color=species_colors[i])
         if x_skeleton is not None:
-            axs[0].plot(t_eval, x_skeleton[:, i], '--', label=f"Skeleton Species {i+1}", color=species_colors[i], alpha=0.7)
+            axs[0].plot(t_eval, x_skeleton[:, i], '--', color=species_colors[i], alpha=0.7)
 
-    axs[0].set_title("Absolute Populations")
+    axs[0].set_title("Absolute Populations (log scale)")
     axs[0].set_xlabel("Time")
     axs[0].set_ylabel("Population")
-    axs[0].legend()
+    axs[0].set_yscale('log')
     axs[0].grid(True)
+    axs[0].legend(["Data", "Fitted", "Skeleton"] if x_skeleton is not None else ["Data", "Fitted"])
 
     # Proportions
     for i in range(num_species):
-        axs[1].plot(t_eval, target_proportions[:, i], 'o', label=f"Noisy Species {i+1}", color=species_colors[i], alpha=0.4)
-        axs[1].plot(t_eval, pred_props[:, i], '-', label=f"Fitted Species {i+1}", color=species_colors[i])
+        axs[1].plot(t_eval, target_proportions[:, i], 'o', color=species_colors[i], alpha=0.5)
+        axs[1].plot(t_eval, pred_props[:, i], '-', color=species_colors[i])
         if x_skeleton is not None:
             skel_props = to_proportions(x_skeleton)
-            axs[1].plot(t_eval, skel_props[:, i], '--', label=f"Skeleton Species {i+1}", color=species_colors[i], alpha=0.7)
+            axs[1].plot(t_eval, skel_props[:, i], '--', color=species_colors[i], alpha=0.7)
 
     axs[1].set_title("Proportions")
     axs[1].set_xlabel("Time")
     axs[1].set_ylabel("Proportion")
-    axs[1].legend()
     axs[1].grid(True)
+    axs[1].legend(["Data", "Fitted", "Skeleton"] if x_skeleton is not None else ["Data", "Fitted"])
 
     # Param Fit Quality
     if true_params is not None:
@@ -271,7 +316,7 @@ def plot_fit(t_eval, x_noisy, fitted_params, true_params=None, x_skeleton=None):
         axs[2].plot([min_val - pad, max_val + pad], [min_val - pad, max_val + pad], 'k--', alpha=0.5)
         axs[2].set_xlim(min_val - pad, max_val + pad)
         axs[2].set_ylim(min_val - pad, max_val + pad)
-        axs[2].set_title("Fitted vs True Params")
+        axs[2].set_title("Fitted vs True Params (log scale)")
         axs[2].set_xlabel("True")
         axs[2].set_ylabel("Fitted")
         axs[2].grid(True)
@@ -279,18 +324,17 @@ def plot_fit(t_eval, x_noisy, fitted_params, true_params=None, x_skeleton=None):
     plt.tight_layout()
     plt.show()
 
-
 # Create synthetic data
 #true_params = jnp.array([2.0, 1.0, 0.5, 1.0])
-#r = jnp.array([2.0, -1.0])
+#r = jnp.array([1.0, -0.5])
 #A = jnp.array([
-#    [0.0, -1.0],
-#    [0.5,  0.0]
+#    [0.0, -0.5],
+#    [0.25,  0.0]
 #])
-#x0 = jnp.array([0.5, 0.5])
+#x0 = jnp.array([0.5,0.5])
 #model_params = flatten_params(r, A)
 #true_params = jnp.concatenate([x0, model_params])
-#t_eval = jnp.linspace(0, 10, 100)
+#t_eval = jnp.linspace(0, 20, 100)
 #x_true, _ = integrate_with_event(model_params, x0, t_eval)
 #load data from file
 #data = pd.read_csv("C1.csv")
@@ -304,22 +348,23 @@ A_chaos = -1*jnp.array([
 x0_chaos = jnp.array([0.4874672, 0.1488466, 0.2485307, 0.1151555])
 model_params = flatten_params(r_chaos, A_chaos)
 true_params = jnp.concatenate([x0_chaos, model_params])
-t_eval = jnp.linspace(0, 25, 200)
+t_eval = jnp.linspace(0, 25, 100)
 x_true, _ = integrate_with_event(model_params, x0_chaos, t_eval)
 
 key = jax.random.PRNGKey(42)
-shape_param = 50.0  # Higher means less variance (more concentrated around the mean)
 
 # Compute scale such that shape * scale = x_true
-scale = x_true / shape_param
-
+scale = 0.005
 # Sample from Gamma
+#theta = 0.01 #small scale means smaller variance
 key1, key2 = jax.random.split(key)
-gamma_noise = jax.random.gamma(key1, shape_param, shape=x_true.shape) * scale
+x_true_np = np.array(x_true)
+np.random.seed(43)
+gamma_noise = np.random.gamma(x_true_np/scale, 1, size = x_true_np.shape)*scale
 
 # Rescale so that the total population at t=0 sums to 1
 initial_total = jnp.sum(gamma_noise[0])
-scaling_factor = 1.0 / initial_total
+scaling_factor = 1.0 #/ initial_total
 x_true_noise = gamma_noise * scaling_factor
 
 target_props = to_proportions(x_true_noise)
@@ -330,41 +375,24 @@ target_props = to_proportions(x_true_noise)
 #target_props = to_proportions(x_true)
 
 # Train
-def train_with_refinement(t_eval, target_props, init_trials=50000, first_steps=50000, refine_steps=50000):
+def train_with_refinement(t_eval, target_props, init_trials=100000, first_steps=50000, refine_steps=1000, dirichlet_steps = 80500):
     key = jax.random.PRNGKey(0)
     x0_guess = target_props[0]
-    full_init = try_initializations(init_trials, x0_guess, t_eval, target_props, key)
+    tmp = try_initializations(init_trials, x0_guess, t_eval, target_props, key)
+    tmp = fit_model(t_eval, target_props, tmp, steps=20000, use_weights=False)
+    tmp = fit_dirichlet(t_eval, target_props, tmp, 5000)
+    #plot_fit(t_eval, x_true_noise, full_init, 1, true_params, x_true)
+    tmp = fit_model(t_eval, target_props, tmp, steps=first_steps)
+    #plot_fit(t_eval, x_true_noise, trained, 1, true_params, x_true)
+    optimizer_sse = optax.adam(5e-4)
+    tmp = fit_model(t_eval, target_props, tmp, steps=refine_steps, use_weights=False)
+    #plot_fit(t_eval, x_true_noise, tmp, 1, true_params, x_true)
+    tmp = fit_dirichlet(t_eval, target_props, tmp, dirichlet_steps)
 
-    trained = fit_model(t_eval, target_props, full_init, steps=first_steps)
-    unweighted = fit_model(t_eval, target_props, trained, steps=refine_steps, use_weights=False)
-
-    #import numpy as np
-    #from scipy.optimize import minimize
-    #from jax import value_and_grad
-
-    ## Wrap loss + gradient
-    #loss_and_grad_fn = value_and_grad(lambda p: loss_fn(p, t_eval, target_props, jnp.ones_like(t_eval)))
-
-    #def scipy_loss(p_numpy):
-    #    # Convert numpy -> jax
-    #    p_jax = jnp.array(p_numpy)
-    #    loss_val, _ = loss_and_grad_fn(p_jax)
-    #    return float(loss_val)#, np.array(grad_val)
-
-    ## Use scipy minimize
-    #result = minimize(
-    #    fun=scipy_loss,
-    #    x0=np.array(unweighted),  # from ADAM result
-    #    method="L-BFGS-B",
-    #    options=dict(maxiter=500, disp=True)
-    #)
-
-    #fitted_params_bfgs = jnp.array(result.x)
-
-    return unweighted
+    return tmp
 
 
 fitted_params = train_with_refinement(t_eval, target_props)
 # Plot result
-plot_fit(t_eval, x_true_noise, fitted_params, true_params, x_true)
+plot_fit(t_eval, x_true_noise, fitted_params, scale, true_params, x_true)
 
