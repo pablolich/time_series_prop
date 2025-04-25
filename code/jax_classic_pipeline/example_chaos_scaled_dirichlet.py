@@ -355,13 +355,25 @@ x_true, _ = integrate_with_event(model_params, x0_chaos, t_eval)
 key = jax.random.PRNGKey(42)
 
 # Compute scale such that shape * scale = x_true
-scale = 0.005
+w = np.array([0.001, 1, 0.001, 0.001]) #i am able to do 0.005
 # Sample from Gamma
 #theta = 0.01 #small scale means smaller variance
 key1, key2 = jax.random.split(key)
 x_true_np = np.array(x_true)
 np.random.seed(43)
-gamma_noise = np.random.gamma(x_true_np/scale, 1, size = x_true_np.shape)*scale
+gamma_noise = np.random.gamma(x_true_np/w, 1)*w
+# plot to check
+num_species = 4
+fig, axs = plt.subplots(1,  figsize=(6, 5))
+for i in range(num_species):
+    axs.plot(t_eval, gamma_noise[:, i], 'o', alpha=0.5)
+
+axs.set_title("Absolute Populations (log scale)")
+axs.set_xlabel("Time")
+axs.set_ylabel("Population")
+axs.set_yscale('log')
+plt.show()
+import ipdb; ipdb.set_trace(context = 20)
 
 # Rescale so that the total population at t=0 sums to 1
 initial_total = jnp.sum(gamma_noise[0])
