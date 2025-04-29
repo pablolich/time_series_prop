@@ -168,7 +168,7 @@ def dirichlet_loglikelihood_loss(flat_params, t_eval, target_props):
     model_params = flat_params[num_species:]
 
     x_pred, penalty = integrate_with_event(model_params, x0, t_eval)  # absolute abundances
-    alpha = x_pred/scale #jnp.clip(x_pred, a_min=1e-3)  # Dirichlet requires positive concentrations
+    alpha = x_pred/w #dirichlet parameter is z_i = x_i*w_i
 
     # Dirichlet log-likelihood at each timepoint
     log_probs = jax.vmap(jax_dirichlet.logpdf)(target_props, alpha)
@@ -267,11 +267,10 @@ import matplotlib.cm as cm
 import numpy as np
 import jax.numpy as jnp
 
-def plot_fit(t_eval, x_noisy, fitted_params, scale, true_params=None, x_skeleton=None):
+def plot_fit(t_eval, x_noisy, fitted_params, w, true_params=None, x_skeleton=None, transform_params = False):
     target_proportions = to_proportions(x_noisy)
     num_species = target_proportions.shape[1]
     x0 = fitted_params[:num_species]
-    import ipdb; ipdb.set_trace(context = 20)
     model_params = fitted_params[num_species:]
     x_fitted, _ = integrate_with_event(model_params, x0, t_eval)
     pred_props = to_proportions(x_fitted)
@@ -355,30 +354,30 @@ x_true, _ = integrate_with_event(model_params, x0_chaos, t_eval)
 key = jax.random.PRNGKey(42)
 
 # Compute scale such that shape * scale = x_true
-w = np.array([0.001, 1, 0.001, 0.001]) #i am able to do 0.005
+w = jnp.array([0.001, 0.001, 0.001, 0.001]) #i am able to do 0.005
 # Sample from Gamma
 #theta = 0.01 #small scale means smaller variance
 key1, key2 = jax.random.split(key)
 x_true_np = np.array(x_true)
 np.random.seed(43)
-gamma_noise = np.random.gamma(x_true_np/w, 1)*w
+gamma_noise = np.random.gamma(x_true_np/w, 1)#*w
 # plot to check
+# Rescale so that the total population at t=0 sums to 1
+initial_total = jnp.sum(gamma_noise[0])
+scaling_factor = 1.0# / initial_total
+x_true_noise = gamma_noise * scaling_factor
 num_species = 4
 fig, axs = plt.subplots(1,  figsize=(6, 5))
 for i in range(num_species):
     axs.plot(t_eval, gamma_noise[:, i], 'o', alpha=0.5)
+    axs.plot(t_eval, x_true[:, i]/w[i], '--')
 
 axs.set_title("Absolute Populations (log scale)")
 axs.set_xlabel("Time")
 axs.set_ylabel("Population")
 axs.set_yscale('log')
 plt.show()
-import ipdb; ipdb.set_trace(context = 20)
 
-# Rescale so that the total population at t=0 sums to 1
-initial_total = jnp.sum(gamma_noise[0])
-scaling_factor = 1.0 #/ initial_total
-x_true_noise = gamma_noise * scaling_factor
 
 target_props = to_proportions(x_true_noise)
 
@@ -388,24 +387,30 @@ target_props = to_proportions(x_true_noise)
 #target_props = to_proportions(x_true)
 
 # Train
-def train_with_refinement(t_eval, target_props, init_trials=100000, first_steps=50000, refine_steps=1000, dirichlet_steps = 80500):
+def train_with_refinement(t_eval, target_props, init_trials=100000, first_steps=50000, refine_steps=5000, dirichlet_steps = 80500):
     key = jax.random.PRNGKey(0)
     x0_guess = target_props[0]
     tmp = try_initializations(init_trials, x0_guess, t_eval, target_props, key)
-    tmp = fit_model(t_eval, target_props, tmp, steps=20000, use_weights=False)
-    tmp = fit_dirichlet(t_eval, target_props, tmp, 5000)
-    #plot_fit(t_eval, x_true_noise, full_init, 1, true_params, x_true)
-    tmp = fit_model(t_eval, target_props, tmp, steps=first_steps)
-    #plot_fit(t_eval, x_true_noise, trained, 1, true_params, x_true)
+    tmp = fit_model(t_eval, target_props, tmp, steps=30000, use_weights=False)
+    #plot_fit(t_eval, x_true_noise, tmp, 1, true_params, x_true)
+    tmp = fit_dirichlet(t_eval, target_props, tmp, 20000)
+    #plot_fit(t_eval, x_true_noise, tmp, 1, true_params, x_true)
+    tmp = fit_model(t_eval, target_props, tmp, steps=10000)
+    #plot_fit(t_eval, x_true_noise, tmp, 1, true_params, x_true)
     optimizer_sse = optax.adam(5e-4)
     tmp = fit_model(t_eval, target_props, tmp, steps=refine_steps, use_weights=False)
     #plot_fit(t_eval, x_true_noise, tmp, 1, true_params, x_true)
     tmp = fit_dirichlet(t_eval, target_props, tmp, dirichlet_steps)
-
     return tmp
 
 
 fitted_params = train_with_refinement(t_eval, target_props)
 # Plot result
-plot_fit(t_eval, x_true_noise, fitted_params, scale, true_params, x_true)
+#transforme params
+#if transform_params:
+#    x0 = x0*w
+import ipdb; ipdb.set_trace(context = 20)
+#DIVIDE AS THE TRUE ABUNDANCES AS IN THE LIKELIHOOD
+plot_fit(t_eval, x_true_noise, fitted_params, w, true_params, x_true, True)
+
 

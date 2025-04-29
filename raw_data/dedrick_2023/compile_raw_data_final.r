@@ -1,0 +1,236 @@
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(readr)
+library(hms)
+
+# Read all lines
+lines <- read_lines("Cocultures_GFPSa_1850_1821_MC_Day1_29JUL2019.txt")
+
+# Find time headers
+time_lines <- grep("^Time \\d+ \\(", lines)
+time_numbers <- as.numeric(str_extract(lines[time_lines], "(?<=Time )\\d+"))
+
+# Identify blocks
+od_idx <- 1:130        # OD600
+gfp_idx <- 146:290     # GFP
+
+# Helper to parse a block
+parse_time_block <- function(start_line, end_line, time_number) {
+  block_lines <- lines[(start_line + 1):(end_line - 1)]
+  block_lines <- block_lines[nzchar(block_lines)]  # remove empty lines
+  matrix_data <- do.call(rbind, lapply(block_lines, function(l) str_split(str_trim(l), "\\s+")[[1]]))
+  df <- as.data.frame(matrix_data, stringsAsFactors = FALSE)
+  colnames(df) <- as.character(1:ncol(df))
+  df <- df %>%
+    mutate(Row = LETTERS[1:n()]) %>%
+    pivot_longer(cols = -Row, names_to = "Col", values_to = "Value") %>%
+    mutate(
+      Well = paste0(Row, Col),
+      Time_number = time_number,
+      Value = as.numeric(Value)
+    ) %>%
+    select(Time_number, Well, Value)
+  return(df)
+}
+
+# Function to compute OD600 from GFP Fluorescence
+fluorescence_to_od600 <- function(F) {
+  a <- 0.0283
+  b <- 5.20e-6 * (100 - F)
+  
+  ifelse(
+    F < 3000,
+    2.97e-5 * (F + 200),
+    -a + sqrt(a^2 - b)
+  )
+}
+
+
+# Define correction functions
+correct_od600_sa <- function(OD) {
+  ifelse(OD > 0.5, (2.7 * OD) / (2.7 - OD), OD)
+}
+
+correct_od600_kpl <- function(OD) {
+  ifelse(OD > 0.5, (2.5 * OD) / (2.5 - OD), OD)
+}
+
+
+# Parse OD600
+od_data <- bind_rows(lapply(od_idx, function(i) {
+  start <- time_lines[i]
+  end <- if (i < length(time_lines)) time_lines[i + 1] else length(lines)
+  parse_time_block(start, end, time_numbers[i])  # use time_numbers[i] directly
+})) %>%
+  mutate(Measurement = "OD600")
+
+# Parse GFP
+gfp_data <- bind_rows(lapply(gfp_idx, function(i) {
+  start <- time_lines[i]
+  end <- if (i < length(time_lines)) time_lines[i + 1] else length(lines)
+  parse_time_block(start, end, time_numbers[i])  # use time_numbers[i] directly
+})) %>%
+  mutate(Measurement = "GFP")
+
+# Combine
+combined_data <- bind_rows(od_data, gfp_data)
+
+# Map wells to experimental conditions
+group_map <- data.frame(
+  Well = c(
+    "A5", "B5", "C5", "D5", "E5", "F5",
+    "A6", "B6", "C6", "D6", "E6", "F6",
+    "A7", "B7", "C7", "D7", "E7", "F7"
+  ),
+  Condition = c(
+    rep("Sa:Sna 1:1", 6),
+    rep("Sa:Sna 1:10", 6),
+    rep("Sa:Sna 1:100", 6)
+  )
+)
+
+# Merge conditions
+combined_data <- left_join(combined_data, group_map, by = "Well")
+
+# Split OD600 and GFP
+od_cocultures <- combined_data %>%
+  filter(Measurement == "OD600", !is.na(Condition))
+
+gfp_cocultures <- combined_data %>%
+  filter(Measurement == "GFP", !is.na(Condition))
+
+# Build time vector in hours
+time_vector_hr <- (10/60) * (1:max(od_cocultures$Time_number))
+# Select wells
+target_wells <- c(
+  "A5", "B5", "C5", "D5", "E5", "F5",
+  "A6", "B6", "C6", "D6", "E6", "F6",
+  "A7", "B7", "C7", "D7", "E7", "F7"
+)
+
+# Filter OD and GFP
+od_selected <- od_cocultures %>%
+  filter(Well %in% target_wells)
+
+gfp_selected <- gfp_cocultures %>%
+  filter(Well %in% target_wells)
+
+# Background subtraction, nonlinear calibration
+gfp_background <- gfp_selected %>%
+  filter(Time_number <= 5) %>%
+  group_by(Well) %>%
+  summarize(background = mean(Value, na.rm = TRUE))
+
+od_background <- od_selected %>%
+  filter(Time_number <= 5) %>%
+  group_by(Well) %>%
+  summarize(background = mean(Value, na.rm = TRUE))
+
+gfp_selected <- left_join(gfp_selected, gfp_background, by = "Well") %>%
+  mutate(
+    GFP_corrected = Value - background,
+    GFP_corrected = ifelse(GFP_corrected < 0, 0, GFP_corrected)
+  )
+
+od_selected <- left_join(od_selected, od_background, by = "Well") %>%
+  mutate(
+    OD600_corrected = Value - background,
+    OD600_corrected = ifelse(OD600_corrected < 0, 0, OD600_corrected)
+  )
+
+gfp_selected <- gfp_selected %>%
+  mutate(
+    Sa_OD = GFP_corrected/192970#fluorescence_to_od600(GFP_corrected)
+  )
+
+merged_selected <- inner_join(
+  gfp_selected %>% select(Time_number, Well, Condition, Sa_OD),
+  od_selected %>% select(Time_number, Well, Condition, OD600_corrected),
+  by = c("Time_number", "Well", "Condition")
+) %>%
+  mutate(
+    Sna_OD = OD600_corrected - Sa_OD
+  )
+
+# ---------------- Filter wells with no real growth ----------------
+
+# Compute max OD for each Well
+growth_summary <- merged_selected %>%
+  group_by(Well) %>%
+  summarize(
+    max_OD_total = max(OD600_corrected, na.rm = TRUE),
+    max_OD_Sa = max(Sa_OD, na.rm = TRUE),
+    max_OD_Sna = max(Sna_OD, na.rm = TRUE)
+  )
+
+# Keep only wells where at least one strain grows above a threshold
+# (say at least 0.1 OD600 at some point)
+good_wells <- growth_summary %>%
+  filter(max_OD_total > 0.1) %>%
+  pull(Well)
+
+# Filter merged_selected to keep only growing wells
+merged_selected_filtered <- merged_selected %>%
+  filter(Well %in% good_wells)
+
+# ---------------- Average replicates ----------------
+
+# For each Condition, each Time_number, compute the mean across good wells
+merged_averaged <- merged_selected_filtered %>%
+  group_by(Condition, Time_number) %>%
+  summarize(
+    Sa_OD = mean(Sa_OD, na.rm = TRUE),
+    Sna_OD = mean(Sna_OD, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Time_min = Time_number * 10,
+    Time_hr = Time_min / 60
+  )
+
+
+# Prepare for plotting
+plot_data_avg <- merged_averaged %>%
+  pivot_longer(cols = c(Sa_OD, Sna_OD), names_to = "Species", values_to = "OD600")
+
+ggplot(plot_data_avg, aes(x = Time_hr, y = OD600, color = Species)) +
+  geom_line(size = 1.2, alpha = 0.9) +
+  facet_wrap(~ Condition, nrow = 3, scales = "free_y") +
+  labs(title = "Averaged OD600: S. aureus and KPL1850 per Condition",
+       x = "Time (hours)", y = "OD600") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+
+# ----------------- Select only 1:10 Sa:Sna condition -------------------
+
+merged_1to10 <- merged_averaged %>%
+  filter(Condition == "Sa:Sna 1:10")
+
+# ----------------- Calculate proportions and totals -------------------
+
+# Total OD600 at each time
+merged_1to10 <- merged_1to10 %>%
+  mutate(
+    Total_OD = Sa_OD + Sna_OD,
+    Prop_Sa = Sa_OD / Total_OD
+  )
+
+# ----------------- Create list -------------------
+totpoints = nrow(merged_1to10)
+# Create a list with times, proportion of first species only, totals
+data_1to10 <- list(
+  times = merged_1to10$Time_hr[14:totpoints],        # vector of times (in hours)
+  proportions = merged_1to10$Prop_Sa[14:totpoints],  # vector of proportion of S. aureus
+  totals = merged_1to10$Total_OD[14:totpoints]       # vector of total OD600
+)
+
+data_1to10$times = data_1to10$times-min(data_1to10$times)
+
+# ----------------- Save as RData -------------------
+
+save(data_1to10, file = "data_1to10.RData")
+
+load("data_1to10.RData")
